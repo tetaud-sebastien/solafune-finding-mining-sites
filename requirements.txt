@@ -1,0 +1,15 @@
+tensorboard
+scipy
+opencv-python
+tqdm
+matplotlib
+pyyaml
+setuptools==59.5.0
+pandas
+scikit-learn
+natsort
+bokeh
+onnx==1.14.0
+torch==2.0.1
+torchvision==0.15.2
+segmentation_models_pytorch
