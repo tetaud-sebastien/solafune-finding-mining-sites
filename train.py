@@ -21,7 +21,6 @@ from tqdm import tqdm
 from datasets import TrainDataset, EvalDataset
 from utils import *
 from logs.train import train_log, val_log
-import segmentation_models_pytorch as smp
 
 from loguru import logger
 import segmentation_models_pytorch as smp
@@ -153,11 +152,6 @@ def main(config):
                 images_inputs = images_inputs.to(device)
                 targets = targets.to(device)
                 preds = model(images_inputs)
-
-
-                print(preds)
-
-
 
                 if loss_func == "BCE":
 

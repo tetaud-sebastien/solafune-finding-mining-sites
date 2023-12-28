@@ -129,7 +129,6 @@ class Unet(nn.Module):
         self.out = Conv2dBlock(in_channels=64, out_channels=1, kernel_size=1, stride=1, padding=0, dilation=1, activation='sigmoid',norm='none')
         
 
-
     def forward(self, x):
 
         # Encoder
@@ -175,7 +174,6 @@ if __name__== "__main__":
     x = torch.rand((1,3,128,128))
     net = Unet(num_channels=3)
     out = net(x)
-
     print(out.shape)
 
 
