@@ -107,6 +107,7 @@ def normalize(band):
 def image_preprocessing(image_path):
 
     image = xr.open_rasterio(image_path, masked=False).values
+    
     red = image[3,:,:]
     green = image[2,:,:]
     blue = image[1,:,:]
@@ -115,6 +116,7 @@ def image_preprocessing(image_path):
     green_n = normalize(green)
     blue_n = normalize(blue)
     rgb_composite_n= np.dstack((red_n, green_n, blue_n))
+    print(rgb_composite_n.shape)
     return rgb_composite_n
 
 
@@ -135,22 +137,19 @@ class TrainDataset(Dataset):
 
     def __getitem__(self, index):
 
-        img_path = self.df_path.rgb_path.iloc[index]
+        img_path = self.df_path.image_path.iloc[index]
 
         image = image_preprocessing(img_path)
-        image = cv2.resize(image, (32, 32),interpolation=cv2.INTER_NEAREST)/255.0
-        image = np.transpose(image, (2,1,0))
-        image = torch.Tensor(image)        
 
-        mask_path = self.df_path.mask_path.iloc[index]
-        mask = xr.open_rasterio(mask_path, masked=True)
-        mask = mask[0,:,:]
-        mask = mask.values
-        mask = cv2.resize(mask,(32,32),interpolation=cv2.INTER_NEAREST)
-        mask = torch.Tensor(mask)
-        mask =mask.to(torch.int)
+
+        image = cv2.resize(image, (128, 128),interpolation=cv2.INTER_NEAREST)
         
-        return image, mask
+        image = np.transpose(image, (2,1,0))
+        image = torch.Tensor(image)
+        
+        target = self.df_path.target.iloc[index] 
+        
+        return image, target
 
     def __len__(self):
         return len(self.df_path)
@@ -165,22 +164,18 @@ class EvalDataset(Dataset):
 
     def __getitem__(self, index):
 
-        img_path = self.df_path.rgb_path.iloc[index]
+        img_path = self.df_path.image_path.iloc[index]
 
         image = image_preprocessing(img_path)
-        image = cv2.resize(image, (32, 32),interpolation=cv2.INTER_NEAREST)/255.0
+
+        image = cv2.resize(image, (128, 128),interpolation=cv2.INTER_NEAREST)
+
         image = np.transpose(image, (2,1,0))
         image = torch.Tensor(image)        
 
-        mask_path = self.df_path.mask_path.iloc[index]
-        mask = xr.open_rasterio(mask_path, masked=True)
-        mask = mask[0,:,:]
-        mask = mask.values
-        mask = cv2.resize(mask,(32,32),interpolation=cv2.INTER_NEAREST)
-        mask = torch.Tensor(mask)
-        mask =mask.to(torch.int)
+        target = self.df_path.target.iloc[index] 
         
-        return image, mask
+        return image, target
 
 
     def __len__(self):

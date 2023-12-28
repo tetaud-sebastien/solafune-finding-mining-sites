@@ -18,7 +18,7 @@ import torchvision.transforms as T
 
 from tqdm import tqdm
 
-from datasets_solafune import TrainDataset, EvalDataset
+from datasets import TrainDataset, EvalDataset
 from utils import *
 from logs.train import train_log, val_log
 import segmentation_models_pytorch as smp
@@ -77,7 +77,7 @@ def main(config):
         logger.info("starting tensorboard")
         logger.info("------")
 
-        command = f'tensorboard --logdir {tensorboard_path} --port {tbp} --host 10.0.0.6 --load_fast=true'
+        command = f'tensorboard --logdir {tensorboard_path} --port {tbp} --host 192.168.0.24 --load_fast=true'
         tensorboard_process = subprocess.Popen(shlex.split(command), env=os.environ.copy())
 
         train_tensorboard_writer = SummaryWriter(
@@ -93,8 +93,8 @@ def main(config):
 
     # Seed for reproductibility training
     torch.manual_seed(seed)
-    
-    model = smp.Unet(encoder_name="resnet50", encoder_weights=None,in_channels=3, classes=1, activation="sigmoid")
+    from models import Unet
+    model = Unet(num_channels=3)
 
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(gpu_device))
@@ -149,34 +149,20 @@ def main(config):
             for data in train_dataloader:
 
                 optimizer.zero_grad()
-                # inputs, targets = data
-                images_inputs, seg_targets = data
+                images_inputs, targets = data
                 images_inputs = images_inputs.to(device)
-                seg_targets = seg_targets.to(device)
-                seg_preds = model(images_inputs)
+                targets = targets.to(device)
+                preds = model(images_inputs)
 
-                # Compute loss
-                if loss_func == "cross_entropy":
 
-                    criterion = nn.CrossEntropyLoss()
-                    loss_train = criterion(seg_preds.to(
-                        torch.float32), seg_targets.to(torch.float32))
+                print(preds)
 
-                if loss_func == "Dice":
 
-                    criterion = DiceLoss()
-                    loss_train = criterion(seg_preds, seg_targets)
 
-                elif loss_func == "WeightedBCE":
+                if loss_func == "BCE":
 
-                    criterion = WeightedBCELoss(weight_pos=2, weight_neg=1)
-                    loss_train = criterion(seg_preds[:, 0, :, :].to(
-                        torch.float32), seg_targets.to(torch.float32))
-
-                elif loss_func == "BCE":
-
-                    criterion_seg = nn.BCELoss()
-                    loss_train = criterion_seg(seg_preds[:, 0, :, :].to(torch.float32), seg_targets.to(torch.float32))
+                    criterion = nn.BCELoss()
+                    loss_train = criterion(preds, targets)
 
                 loss = loss_train
 
@@ -184,7 +170,7 @@ def main(config):
                 optimizer.step()
 
                 epoch_losses.update(loss.item(), len(images_inputs))
-                train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
+                #train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
 
                 t.set_postfix(loss='{:.6f}'.format(epoch_losses.avg))
                 t.update(len(images_inputs))
@@ -197,122 +183,106 @@ def main(config):
 
         iou_metrics = []
         f1_score_metrics = []
-        f2_score_metrics = []
-        accuracy_metrics = []
-        recall_metrics = []
+        # f2_score_metrics = []
+        # accuracy_metrics = []
+        # recall_metrics = []
         metrics_dict = {}
 
         # Model Evaluation
         for index, data in enumerate(eval_dataloader):
             
-        
 
-            images_inputs, seg_targets = data
+
+            images_inputs, targets = data
             images_inputs = images_inputs.to(device)
-            seg_targets = seg_targets.to(device)
+            targets = targets.to(device)
+            preds = model(images_inputs)
 
             with torch.no_grad():
 
                 seg_preds = model(images_inputs)
 
-            if loss_func == "cross_entropy":
-
-                criterion = nn.CrossEntropyLoss()
-                eval_loss = criterion(seg_preds.to(
-                    torch.float32), seg_targets.to(torch.float32))
-
-            if loss_func == "Dice":
-                eval_loss = criterion(seg_preds, seg_targets)
-
-            elif loss_func == "WeightedBCE":
-
-                criterion = WeightedBCELoss(weight_pos=2, weight_neg=1)
-
-                eval_loss = criterion(seg_preds[:, 0, :, :].to(
-                    torch.float32), seg_targets.to(torch.float32))
-
-            elif loss_func == "BCE":
+            if loss_func == "BCE":
 
                 criterion = BCELoss()
-                eval_loss = criterion_seg(seg_preds[:, 0, :, :].to(
-                    torch.float32), seg_targets.to(torch.float32))
+                eval_loss = criterion(preds[:, 0, :, :].to(torch.float32), targets.to(torch.float32))
 
             # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
             #         seg_targets=seg_targets, seg_preds=seg_preds,
             #         tensorboard_writer=val_tensorboard_writer, name="Validation",
             #         prediction_dir=prediction_dir)
 
-            eval_losses.update(eval_loss.item(), len(images_inputs))
-            preds = seg_preds.detach().cpu().numpy()
-            targets = seg_targets.detach().cpu().numpy()
+    #         eval_losses.update(eval_loss.item(), len(images_inputs))
+    #         preds = seg_preds.detach().cpu().numpy()
+    #         targets = seg_targets.detach().cpu().numpy()
 
-            threshold = 0.5
-            binary_prediction = (preds[0,0,:,:] > threshold).astype(np.uint8)
-            binary_prediction = binary_prediction.flatten()
-            seg_target = targets[0,:,:].flatten()
+    #         threshold = 0.5
+    #         binary_prediction = (preds[0,0,:,:] > threshold).astype(np.uint8)
+    #         binary_prediction = binary_prediction.flatten()
+    #         seg_target = targets[0,:,:].flatten()
 
 
-            from sklearn.metrics import f1_score
-            from sklearn.metrics import jaccard_score
+    #         from sklearn.metrics import f1_score
+    #         from sklearn.metrics import jaccard_score
 
-            f1_score_metrics.append(f1_score(seg_target, binary_prediction))
-            iou_metrics.append(jaccard_score(seg_target, binary_prediction))
+    #         f1_score_metrics.append(f1_score(seg_target, binary_prediction))
+    #         iou_metrics.append(jaccard_score(seg_target, binary_prediction))
         
-        metrics_dict[epoch] = { "IoU": np.mean(iou_metrics),"F1": np.mean(f1_score_metrics)
-                               }
-        print(metrics_dict)
-        df_metrics = pd.DataFrame(metrics_dict).T
-        df_mean_metrics = df_metrics.mean()
-        df_mean_metrics = pd.DataFrame(df_mean_metrics).T
+    #     metrics_dict[epoch] = { "IoU": np.mean(iou_metrics),"F1": np.mean(f1_score_metrics)
+    #                            }
+    #     print(metrics_dict)
+    #     df_metrics = pd.DataFrame(metrics_dict).T
+    #     df_mean_metrics = df_metrics.mean()
+    #     df_mean_metrics = pd.DataFrame(df_mean_metrics).T
 
-        if epoch == 0:
+    #     if epoch == 0:
 
-            df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
-            df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+    #         df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
+    #         df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
 
-        else:
-            df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
-            df_val_metrics = df_val_metrics.reset_index(drop=True)
+    #     else:
+    #         df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+    #         df_val_metrics = df_val_metrics.reset_index(drop=True)
 
-        dashboard = Dashboard(df_val_metrics)
-        dashboard.generate_dashboard()
-        dashboard.save_dashboard(directory_path=prediction_dir)
-        # Access the mean values
-        logger.info('Epoch {} Eval {} Loss: {:.2f}'.format(
-            epoch, loss_func, eval_losses.avg))
-        t.write('eval {} Loss: {:.2f}'.format(loss_func, eval_losses.avg))
+    #     dashboard = Dashboard(df_val_metrics)
+    #     dashboard.generate_dashboard()
+    #     dashboard.save_dashboard(directory_path=prediction_dir)
+    #     # Access the mean values
+    #     logger.info('Epoch {} Eval {} Loss: {:.2f}'.format(
+    #         epoch, loss_func, eval_losses.avg))
+    #     t.write('eval {} Loss: {:.2f}'.format(loss_func, eval_losses.avg))
 
-        # Save best model
-        if epoch == 1:
+    #     # Save best model
+    #     if epoch == 1:
 
-            best_epoch = epoch
-            best_loss = eval_losses.avg
-            best_weights = copy.deepcopy(model.state_dict())
+    #         best_epoch = epoch
+    #         best_loss = eval_losses.avg
+    #         best_weights = copy.deepcopy(model.state_dict())
 
-        elif eval_losses.avg < best_loss:
+    #     elif eval_losses.avg < best_loss:
 
-            best_epoch = epoch
-            best_loss = eval_losses.avg
-            best_weights = copy.deepcopy(model.state_dict())
+    #         best_epoch = epoch
+    #         best_loss = eval_losses.avg
+    #         best_weights = copy.deepcopy(model.state_dict())
 
-    logger.info('best epoch: {}, {} loss: {:.2f}'.format(
-        best_epoch, loss_func, best_loss))
-    torch.save(best_weights, os.path.join(output_dir, 'best.pth'))
-    logger.info('Training Done')
-    logger.info('best epoch: {}, {} loss: {:.2f}'.format(
-        best_epoch, loss_func, best_loss))
-    # Measure total training time
-    end_training_date = datetime.datetime.now()
-    training_duration = end_training_date - start_training_date
-    logger.info('Training Duration: {}'.format(str(training_duration)))
-    df_val_metrics['Training_duration'] = training_duration
-    df_val_metrics['nb_parameters'] = nb_parameters
-    model_size = estimate_model_size(model)
-    logger.info("model size: {}".format(model_size))
-    df_val_metrics['model_size'] = model_size
-    # Save validation metrics
-    df_val_metrics.to_csv(os.path.join(
-        prediction_dir, 'valid_metrics_log.csv'))
+    # logger.info('best epoch: {}, {} loss: {:.2f}'.format(
+    #     best_epoch, loss_func, best_loss))
+    # torch.save(best_weights, os.path.join(output_dir, 'best.pth'))
+    # logger.info('Training Done')
+    # logger.info('best epoch: {}, {} loss: {:.2f}'.format(
+    #     best_epoch, loss_func, best_loss))
+    # # Measure total training time
+    # end_training_date = datetime.datetime.now()
+    # training_duration = end_training_date - start_training_date
+    # logger.info('Training Duration: {}'.format(str(training_duration)))
+    # df_val_metrics['Training_duration'] = training_duration
+    # df_val_metrics['nb_parameters'] = nb_parameters
+    # model_size = estimate_model_size(model)
+    # logger.info("model size: {}".format(model_size))
+    # df_val_metrics['model_size'] = model_size
+    # # Save validation metrics
+    # df_val_metrics.to_csv(os.path.join(
+    #     prediction_dir, 'valid_metrics_log.csv'))
 
 
 if __name__ == '__main__':

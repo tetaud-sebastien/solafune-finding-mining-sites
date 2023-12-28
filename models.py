@@ -169,11 +169,13 @@ class Unet(nn.Module):
         return X
 
 
-# if __name__== "__main__":
+if __name__== "__main__":
 
 
-#     x = torch.rand((1,3,256,256))
-#     net = Unet(num_channels=3)
-#     out = net(x)
+    x = torch.rand((1,3,128,128))
+    net = Unet(num_channels=3)
+    out = net(x)
+
+    print(out.shape)
 
 
