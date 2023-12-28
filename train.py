@@ -1,7 +1,6 @@
 import copy
 import datetime
 import os
-import glob
 import shlex
 import subprocess
 import yaml
@@ -50,8 +49,7 @@ def main(config):
     gpu_device = config['gpu_device']
     loss_func = config['loss']
     threshold = config['threshold']
-    alpha = config['alpha']
-
+    
     start_training_date = datetime.datetime.now()
     logger.info("start training session '{}'".format(start_training_date))
     date = start_training_date.strftime('%Y_%m_%d_%H_%M_%S')
