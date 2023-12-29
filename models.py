@@ -128,8 +128,8 @@ class Unet(nn.Module):
         self.t_conv5 = TransposeConv2dLayer(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
         self.conv6 = Conv2dBlock(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
         
-        self.pool = nn.AdaptiveAvgPool2d(8) 
-        self.linear = nn.Linear(32*8*8, 1)
+        self.pool = nn.AdaptiveAvgPool2d(32) 
+        self.linear = nn.Linear(32*32*32, 1)
         
 
 
