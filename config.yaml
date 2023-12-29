@@ -6,7 +6,7 @@ alpha: 0.5 #weight of loss for multi training training
 loss: "cross_entropy" # v
 gpu_device: 0
 lr: 1e-4
-batch_size: 8
+batch_size: 4
 epochs: 30
 workers: 8 
 seed: 123

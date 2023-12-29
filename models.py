@@ -129,7 +129,8 @@ class Unet(nn.Module):
         self.conv6 = Conv2dBlock(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
         
         self.pool = nn.AdaptiveAvgPool2d(8) 
-        self.linear = nn.Linear(32*8*8, 2)
+        self.linear = nn.Linear(32*8*8, 1)
+        
 
 
     def forward(self, x):
@@ -180,13 +181,13 @@ class Unet(nn.Module):
         return X9
 
 
-# if __name__== "__main__":
+if __name__== "__main__":
 
 
-#     x = torch.rand((1,3,256,256))
-#     net = Unet(num_channels=3)
-#     out = net(x)
-#     print(out.shape)
-#     print(out)
+    x = torch.rand((4,3,512,512))
+    net = Unet(num_channels=3)
+    out = net(x)
+    print(out.shape)
+    print(out)
 
 

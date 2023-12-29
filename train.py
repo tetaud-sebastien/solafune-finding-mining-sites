@@ -93,7 +93,7 @@ def main(config):
     # Seed for reproductibility training
     torch.manual_seed(seed)
     from models import Unet
-    model = Unet(num_channels=3)
+    model = Unet(num_channels=12)
 
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(gpu_device))
@@ -115,16 +115,16 @@ def main(config):
 
     # Load train and test data path
     train_path = pd.read_csv('data_splits/train_path.csv')
-    # train_path = train_path[-:]
+    # train_path = train_path[:100]
     valid_path = pd.read_csv('data_splits/test_path.csv')
-    # valid_path = valid_path[-50:]
+    # valid_path = valid_path[:10]
     logger.info("Number of Training data {0:d}".format(len(train_path)))
     logger.info("------")
     logger.info("Number of Validation data {0:d}".format(len(valid_path)))
     logger.info("------")
 
     train_dataset = TrainDataset(df_path=train_path)
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=16, shuffle=False, num_workers=0)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     eval_dataset = EvalDataset(df_path=valid_path)
     eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
@@ -149,18 +149,22 @@ def main(config):
 
                 optimizer.zero_grad()
                 images_inputs, targets = data
+
+                
                 images_inputs = images_inputs.to(device)
                 targets = targets.to(device)
+               
+                
                 preds = model(images_inputs)
 
 
                 preds = torch.sigmoid(preds)
-                # logger.error(targets)
-                # logger.warning(preds)
+                targets = torch.unsqueeze(targets, 1)
+
                 if loss_func == "cross_entropy":
 
-                    criterion = nn.CrossEntropyLoss()
-                    loss_train = criterion(preds, targets.to(torch.long))
+                    criterion = nn.BCELoss()
+                    loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
                    
         
                 loss = loss_train
@@ -180,44 +184,58 @@ def main(config):
         torch.save(model.state_dict(), os.path.join(output_dir, 'epoch_{}.ckpt'.format(epoch)))
         model.eval()
 
-        iou_metrics = []
-        f1_score_metrics = []
+        # iou_metrics = []
+        # f1_score_metrics = []
         # f2_score_metrics = []
-        # accuracy_metrics = []
+        accuracy_metrics = []
         # recall_metrics = []
         metrics_dict = {}
+        
+        targets = []
+        preds = []
 
         # Model Evaluation
         for index, data in enumerate(eval_dataloader):
             
-            images_inputs, targets = data
+            images_inputs, target = data
             images_inputs = images_inputs.to(device)
-            targets = targets.to(device)
-            preds = model(images_inputs)
+            target = target.to(device)
+            target = torch.unsqueeze(target, 1)
+            
 
             with torch.no_grad():
 
-                seg_preds = model(images_inputs)
+                pred = model(images_inputs)
+                pred = torch.sigmoid(pred)
 
-    
             if loss_func == "cross_entropy":
 
-                criterion = nn.CrossEntropyLoss()
-                eval_loss = criterion(preds, targets)
+                criterion = nn.BCELoss()
+                eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
+
             # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
             #         seg_targets=seg_targets, seg_preds=seg_preds,
             #         tensorboard_writer=val_tensorboard_writer, name="Validation",
             #         prediction_dir=prediction_dir)
 
             eval_losses.update(eval_loss.item(), len(images_inputs))
-    #         preds = seg_preds.detach().cpu().numpy()
-    #         targets = seg_targets.detach().cpu().numpy()
 
-    #         threshold = 0.5
-    #         binary_prediction = (preds[0,0,:,:] > threshold).astype(np.uint8)
-    #         binary_prediction = binary_prediction.flatten()
-    #         seg_target = targets[0,:,:].flatten()
+            target = torch.squeeze(target,0)
+            target = target.detach().cpu().numpy()
+            pred = torch.squeeze(pred,0)
+            pred = pred.detach().cpu().numpy()
+            pred = pred.round()
+            targets.append(target)
+            preds.append(pred)
+        
 
+            # print("prediction",preds.round())
+            # print("target", targets)
+        from sklearn.metrics import accuracy_score, f1_score
+        acc = accuracy_score(preds, targets)
+        f1 = f1_score(preds, targets)
+        
+      
 
     #         from sklearn.metrics import f1_score
     #         from sklearn.metrics import jaccard_score
@@ -245,8 +263,7 @@ def main(config):
     #     dashboard.generate_dashboard()
     #     dashboard.save_dashboard(directory_path=prediction_dir)
     #     # Access the mean values
-    #     logger.info('Epoch {} Eval {} Loss: {:.2f}'.format(
-    #         epoch, loss_func, eval_losses.avg))
+        logger.info(f'Epoch {epoch} Eval {loss_func} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
     #     t.write('eval {} Loss: {:.2f}'.format(loss_func, eval_losses.avg))
 
     #     # Save best model
