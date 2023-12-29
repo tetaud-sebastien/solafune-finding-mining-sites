@@ -7,7 +7,7 @@ loss: "cross_entropy" # v
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 30
+epochs: 10
 workers: 8 
 seed: 123
 log_dir : log/

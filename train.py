@@ -15,15 +15,13 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as T
-
 from tqdm import tqdm
-
 from datasets import TrainDataset, EvalDataset
 from utils import *
-from logs.train import train_log, val_log
+# from logs.train import train_log, val_log
+from sklearn.metrics import accuracy_score, f1_score
 
 from loguru import logger
-import segmentation_models_pytorch as smp
 
 import warnings
 warnings.simplefilter('ignore')
@@ -47,7 +45,6 @@ def main(config):
     tbp = config['tbp']
     gpu_device = config['gpu_device']
     loss_func = config['loss']
-    threshold = config['threshold']
     
     start_training_date = datetime.datetime.now()
     logger.info("start training session '{}'".format(start_training_date))
@@ -76,8 +73,8 @@ def main(config):
         logger.info("starting tensorboard")
         logger.info("------")
 
-        command = f'tensorboard --logdir {tensorboard_path} --port {tbp} --host 192.168.0.24 --load_fast=true'
-        tensorboard_process = subprocess.Popen(shlex.split(command), env=os.environ.copy())
+        command = f'tensorboard --logdir {tensorboard_path} --port {tbp} --host localhost --load_fast=true'
+        # tensorboard_process = subprocess.Popen(shlex.split(command), env=os.environ.copy())
 
         train_tensorboard_writer = SummaryWriter(
             os.path.join(tensorboard_path, 'train'), flush_secs=30)
@@ -98,11 +95,7 @@ def main(config):
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(gpu_device))
     logger.info("------")
-
     device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
-    if len(str(gpu_device)) > 1:
-        model = nn.DataParallel(model)
-
     model = model.to(device='cuda')
     nb_parameters = count_model_parameters(model=model)
     logger.info("Number of parameters {}: ".format(nb_parameters))
@@ -111,6 +104,9 @@ def main(config):
     logger.info("------")
 
     # Define Optimizer
+    if loss_func == "cross_entropy":
+        criterion = nn.BCELoss()
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Load train and test data path
@@ -139,7 +135,6 @@ def main(config):
 
         epoch_losses = AverageMeter()
         eval_losses = AverageMeter()
-
         model.train()
 
         with tqdm(total=(len(train_dataset) - len(train_dataset) % batch_size), ncols = 100, colour='#3eedc4') as t:
@@ -149,31 +144,19 @@ def main(config):
 
                 optimizer.zero_grad()
                 images_inputs, targets = data
-
-                
                 images_inputs = images_inputs.to(device)
                 targets = targets.to(device)
-               
-                
                 preds = model(images_inputs)
-
-
                 preds = torch.sigmoid(preds)
                 targets = torch.unsqueeze(targets, 1)
 
-                if loss_func == "cross_entropy":
-
-                    criterion = nn.BCELoss()
-                    loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
-                   
-        
-                loss = loss_train
-
-                loss.backward()
+                
+                loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
+                loss_train.backward()
                 optimizer.step()
 
-                epoch_losses.update(loss.item(), len(images_inputs))
-                #train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
+                epoch_losses.update(loss_train.item(), len(images_inputs))
+                # train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
 
                 t.set_postfix(loss='{:.6f}'.format(epoch_losses.avg))
                 t.update(len(images_inputs))
@@ -184,16 +167,9 @@ def main(config):
         torch.save(model.state_dict(), os.path.join(output_dir, 'epoch_{}.ckpt'.format(epoch)))
         model.eval()
 
-        # iou_metrics = []
-        # f1_score_metrics = []
-        # f2_score_metrics = []
-        accuracy_metrics = []
-        # recall_metrics = []
         metrics_dict = {}
-        
         targets = []
         preds = []
-
         # Model Evaluation
         for index, data in enumerate(eval_dataloader):
             
@@ -207,10 +183,6 @@ def main(config):
 
                 pred = model(images_inputs)
                 pred = torch.sigmoid(pred)
-
-            if loss_func == "cross_entropy":
-
-                criterion = nn.BCELoss()
                 eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
 
             # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
@@ -219,7 +191,6 @@ def main(config):
             #         prediction_dir=prediction_dir)
 
             eval_losses.update(eval_loss.item(), len(images_inputs))
-
             target = torch.squeeze(target,0)
             target = target.detach().cpu().numpy()
             pred = torch.squeeze(pred,0)
@@ -228,67 +199,58 @@ def main(config):
             targets.append(target)
             preds.append(pred)
         
-
-            # print("prediction",preds.round())
-            # print("target", targets)
-        from sklearn.metrics import accuracy_score, f1_score
         acc = accuracy_score(preds, targets)
-        f1 = f1_score(preds, targets)
-        
-        
-    #     metrics_dict[epoch] = { "IoU": np.mean(iou_metrics),"F1": np.mean(f1_score_metrics)
-    #                            }
-    #     print(metrics_dict)
-    #     df_metrics = pd.DataFrame(metrics_dict).T
-    #     df_mean_metrics = df_metrics.mean()
-    #     df_mean_metrics = pd.DataFrame(df_mean_metrics).T
+        f1 = f1_score(preds, targets)        
+        metrics_dict[epoch] = { "F1": f1,"Accuracy": acc }
+        df_metrics = pd.DataFrame(metrics_dict).T
+        df_mean_metrics = df_metrics.mean()
+        df_mean_metrics = pd.DataFrame(df_mean_metrics).T
 
-    #     if epoch == 0:
+        if epoch == 0:
 
-    #         df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
-    #         df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+            df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
+            df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
 
-    #     else:
-    #         df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
-    #         df_val_metrics = df_val_metrics.reset_index(drop=True)
+        else:
+            df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+            df_val_metrics = df_val_metrics.reset_index(drop=True)
 
-    #     dashboard = Dashboard(df_val_metrics)
-    #     dashboard.generate_dashboard()
-    #     dashboard.save_dashboard(directory_path=prediction_dir)
-    #     # Access the mean values
+        dashboard = Dashboard(df_val_metrics)
+        dashboard.generate_dashboard()
+        dashboard.save_dashboard(directory_path=prediction_dir)
+        # Access the mean values
         logger.info(f'Epoch {epoch} Eval {loss_func} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
 
-    #     # Save best model
-    #     if epoch == 1:
+        # Save best model
+        if epoch == 1:
 
-    #         best_epoch = epoch
-    #         best_loss = eval_losses.avg
-    #         best_weights = copy.deepcopy(model.state_dict())
+            best_epoch = epoch
+            best_loss = eval_losses.avg
+            best_weights = copy.deepcopy(model.state_dict())
 
-    #     elif eval_losses.avg < best_loss:
+        elif eval_losses.avg < best_loss:
 
-    #         best_epoch = epoch
-    #         best_loss = eval_losses.avg
-    #         best_weights = copy.deepcopy(model.state_dict())
+            best_epoch = epoch
+            best_loss = eval_losses.avg
+            best_weights = copy.deepcopy(model.state_dict())
 
-    # logger.info('best epoch: {}, {} loss: {:.2f}'.format(
-    #     best_epoch, loss_func, best_loss))
-    # torch.save(best_weights, os.path.join(output_dir, 'best.pth'))
-    # logger.info('Training Done')
-    # logger.info('best epoch: {}, {} loss: {:.2f}'.format(
-    #     best_epoch, loss_func, best_loss))
-    # # Measure total training time
-    # end_training_date = datetime.datetime.now()
-    # training_duration = end_training_date - start_training_date
-    # logger.info('Training Duration: {}'.format(str(training_duration)))
-    # df_val_metrics['Training_duration'] = training_duration
-    # df_val_metrics['nb_parameters'] = nb_parameters
-    # model_size = estimate_model_size(model)
-    # logger.info("model size: {}".format(model_size))
-    # df_val_metrics['model_size'] = model_size
-    # # Save validation metrics
-    # df_val_metrics.to_csv(os.path.join(
-    #     prediction_dir, 'valid_metrics_log.csv'))
+    logger.info('best epoch: {}, {} loss: {:.2f}'.format(best_epoch, loss_func, best_loss))
+
+    torch.save(best_weights, os.path.join(output_dir, 'best.pth'))
+    logger.info('Training Done')
+    logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, loss_func, best_loss))
+    # Measure total training time
+    end_training_date = datetime.datetime.now()
+    training_duration = end_training_date - start_training_date
+    logger.info('Training Duration: {}'.format(str(training_duration)))
+    df_val_metrics['Training_duration'] = training_duration
+    df_val_metrics['nb_parameters'] = nb_parameters
+    model_size = estimate_model_size(model)
+    logger.info("model size: {}".format(model_size))
+    df_val_metrics['model_size'] = model_size
+    # Save validation metrics
+    plot_confusion_matrix(preds,targets,prediction_dir)
+    df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
 
 
 if __name__ == '__main__':

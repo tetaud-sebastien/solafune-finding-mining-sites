@@ -49,15 +49,8 @@ def train_log(step, loss, tensorboard_writer, name, **kwargs):
     
     if step % 100 == 0:
         loss = loss.detach().cpu().numpy()
-        if name=='Validation':
-           
-            print(loss.detach().cpu().numpy())
-        # print(kwargs)
-        # current_lr = kwargs['current_lr']
-        # print('step={}, loss: {:.12f}'.format(step, loss))
         if tensorboard_writer is not None:
             tensorboard_writer.add_scalar(name+'/loss', loss, step)
-            # tensorboard_writer.add_scalar(name+'/learning_rate', current_lr, step)
 
 
 def val_log(epoch, step, images_inputs, seg_targets, seg_preds,
