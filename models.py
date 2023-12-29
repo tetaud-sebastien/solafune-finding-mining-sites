@@ -126,8 +126,11 @@ class Unet(nn.Module):
         
         self.t_conv4 = TransposeConv2dLayer(in_channels=192, out_channels=64, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
         self.t_conv5 = TransposeConv2dLayer(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
-        self.out = Conv2dBlock(in_channels=64, out_channels=1, kernel_size=1, stride=1, padding=0, dilation=1, activation='sigmoid',norm='none')
+        self.conv6 = Conv2dBlock(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, dilation=1, activation='relu',norm='bn')
         
+        self.pool = nn.AdaptiveAvgPool2d(8) 
+        self.linear = nn.Linear(32*8*8, 2)
+
 
     def forward(self, x):
 
@@ -163,17 +166,27 @@ class Unet(nn.Module):
 
 
         t_X5 = self.t_conv5(t_X4)
-        X = self.out(t_X5)
-
-        return X
 
 
-if __name__== "__main__":
+        X6 = self.conv6(t_X5)
+
+        X7 = self.pool(X6)
+
+        X8 = X7.view(X7.shape[0],-1)
+
+        X9 = self.linear(X8)
 
 
-    x = torch.rand((1,3,128,128))
-    net = Unet(num_channels=3)
-    out = net(x)
-    print(out.shape)
+        return X9
+
+
+# if __name__== "__main__":
+
+
+#     x = torch.rand((1,3,256,256))
+#     net = Unet(num_channels=3)
+#     out = net(x)
+#     print(out.shape)
+#     print(out)
 
 

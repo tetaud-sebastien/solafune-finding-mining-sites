@@ -115,8 +115,12 @@ def image_preprocessing(image_path):
     red_n = normalize(red)
     green_n = normalize(green)
     blue_n = normalize(blue)
-    rgb_composite_n= np.dstack((red_n, green_n, blue_n))
-    print(rgb_composite_n.shape)
+    rgb_composite_n = np.dstack((red_n, green_n, blue_n))
+    rgb_composite_n = ((rgb_composite_n - image.min()) / (rgb_composite_n.max() - rgb_composite_n.min())) * 255
+    rgb_composite_n = rgb_composite_n.astype(np.uint8)
+
+    # num_nan = np.sum(np.isnan(rgb_composite_n))
+    # logger.debug(num_nan)`
     return rgb_composite_n
 
 
@@ -139,10 +143,12 @@ class TrainDataset(Dataset):
 
         img_path = self.df_path.image_path.iloc[index]
 
+        # logger.debug(img_path)
+
         image = image_preprocessing(img_path)
 
 
-        image = cv2.resize(image, (128, 128),interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, (256, 256),interpolation=cv2.INTER_NEAREST)/255.0
         
         image = np.transpose(image, (2,1,0))
         image = torch.Tensor(image)
@@ -168,7 +174,7 @@ class EvalDataset(Dataset):
 
         image = image_preprocessing(img_path)
 
-        image = cv2.resize(image, (128, 128),interpolation=cv2.INTER_NEAREST)
+        image = cv2.resize(image, (128, 128),interpolation=cv2.INTER_NEAREST)/255.0
 
         image = np.transpose(image, (2,1,0))
         image = torch.Tensor(image)        

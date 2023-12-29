@@ -115,7 +115,7 @@ def main(config):
 
     # Load train and test data path
     train_path = pd.read_csv('data_splits/train_path.csv')
-    # train_path = train_path[:100]
+    # train_path = train_path[-:]
     valid_path = pd.read_csv('data_splits/test_path.csv')
     # valid_path = valid_path[-50:]
     logger.info("Number of Training data {0:d}".format(len(train_path)))
@@ -153,11 +153,16 @@ def main(config):
                 targets = targets.to(device)
                 preds = model(images_inputs)
 
-                if loss_func == "BCE":
 
-                    criterion = nn.BCELoss()
-                    loss_train = criterion(preds, targets)
+                preds = torch.sigmoid(preds)
+                # logger.error(targets)
+                # logger.warning(preds)
+                if loss_func == "cross_entropy":
 
+                    criterion = nn.CrossEntropyLoss()
+                    loss_train = criterion(preds, targets.to(torch.long))
+                   
+        
                 loss = loss_train
 
                 loss.backward()
@@ -185,8 +190,6 @@ def main(config):
         # Model Evaluation
         for index, data in enumerate(eval_dataloader):
             
-
-
             images_inputs, targets = data
             images_inputs = images_inputs.to(device)
             targets = targets.to(device)
@@ -196,17 +199,17 @@ def main(config):
 
                 seg_preds = model(images_inputs)
 
-            if loss_func == "BCE":
+    
+            if loss_func == "cross_entropy":
 
-                criterion = BCELoss()
-                eval_loss = criterion(preds[:, 0, :, :].to(torch.float32), targets.to(torch.float32))
-
+                criterion = nn.CrossEntropyLoss()
+                eval_loss = criterion(preds, targets)
             # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
             #         seg_targets=seg_targets, seg_preds=seg_preds,
             #         tensorboard_writer=val_tensorboard_writer, name="Validation",
             #         prediction_dir=prediction_dir)
 
-    #         eval_losses.update(eval_loss.item(), len(images_inputs))
+            eval_losses.update(eval_loss.item(), len(images_inputs))
     #         preds = seg_preds.detach().cpu().numpy()
     #         targets = seg_targets.detach().cpu().numpy()
 
