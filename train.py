@@ -235,13 +235,6 @@ def main(config):
         acc = accuracy_score(preds, targets)
         f1 = f1_score(preds, targets)
         
-      
-
-    #         from sklearn.metrics import f1_score
-    #         from sklearn.metrics import jaccard_score
-
-    #         f1_score_metrics.append(f1_score(seg_target, binary_prediction))
-    #         iou_metrics.append(jaccard_score(seg_target, binary_prediction))
         
     #     metrics_dict[epoch] = { "IoU": np.mean(iou_metrics),"F1": np.mean(f1_score_metrics)
     #                            }
@@ -264,7 +257,6 @@ def main(config):
     #     dashboard.save_dashboard(directory_path=prediction_dir)
     #     # Access the mean values
         logger.info(f'Epoch {epoch} Eval {loss_func} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
-    #     t.write('eval {} Loss: {:.2f}'.format(loss_func, eval_losses.avg))
 
     #     # Save best model
     #     if epoch == 1:
