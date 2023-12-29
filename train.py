@@ -16,7 +16,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as T
 from tqdm import tqdm
-from datasets import TrainDataset, EvalDataset
+from datasets import TrainDataset, EvalDataset, TestDataset
 from utils import *
 # from logs.train import train_log, val_log
 from sklearn.metrics import accuracy_score, f1_score
@@ -34,7 +34,6 @@ def main(config):
     """
 
     # load conf file for training
-    dataset_name = config['dataset_name']
     output_dir = config['outpout_dir']
     prediction_dir = config['prediction_dir']
     seed = config['seed']
@@ -99,12 +98,9 @@ def main(config):
     model = model.to(device='cuda')
     nb_parameters = count_model_parameters(model=model)
     logger.info("Number of parameters {}: ".format(nb_parameters))
-    logger.info("------")
-    logger.info("Dataset in use: {}".format(dataset_name))
-    logger.info("------")
 
     # Define Optimizer
-    if loss_func == "cross_entropy":
+    if loss_func == "BCE":
         criterion = nn.BCELoss()
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -112,7 +108,7 @@ def main(config):
     # Load train and test data path
     train_path = pd.read_csv('data_splits/train_path.csv')
     # train_path = train_path[:100]
-    valid_path = pd.read_csv('data_splits/test_path.csv')
+    valid_path = pd.read_csv('data_splits/valid_path.csv')
     # valid_path = valid_path[:10]
     logger.info("Number of Training data {0:d}".format(len(train_path)))
     logger.info("------")
@@ -149,15 +145,12 @@ def main(config):
                 preds = model(images_inputs)
                 preds = torch.sigmoid(preds)
                 targets = torch.unsqueeze(targets, 1)
-
-                
                 loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
                 loss_train.backward()
                 optimizer.step()
 
                 epoch_losses.update(loss_train.item(), len(images_inputs))
                 # train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
-
                 t.set_postfix(loss='{:.6f}'.format(epoch_losses.avg))
                 t.update(len(images_inputs))
 
@@ -177,7 +170,6 @@ def main(config):
             images_inputs = images_inputs.to(device)
             target = target.to(device)
             target = torch.unsqueeze(target, 1)
-            
 
             with torch.no_grad():
 
@@ -201,7 +193,7 @@ def main(config):
         
         acc = accuracy_score(preds, targets)
         f1 = f1_score(preds, targets)        
-        metrics_dict[epoch] = { "F1": f1,"Accuracy": acc }
+        metrics_dict[epoch] = { "F1": f1, "Accuracy": acc }
         df_metrics = pd.DataFrame(metrics_dict).T
         df_mean_metrics = df_metrics.mean()
         df_mean_metrics = pd.DataFrame(df_mean_metrics).T
@@ -252,6 +244,65 @@ def main(config):
     plot_confusion_matrix(preds,targets,prediction_dir)
     df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
 
+    # Model Evaluation
+    test_path = pd.read_csv('data_splits/test_path.csv')
+    test_dataset = EvalDataset(df_path=test_path)
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
+    targets_eval = []
+    preds_eval = []
+    for index, data in enumerate(test_dataloader):
+    
+        images_inputs, target = data
+        images_inputs = images_inputs.to(device)
+        target = target.to(device)
+        target = torch.unsqueeze(target, 1)
+        with torch.no_grad():
+
+            pred = model(images_inputs)
+            pred = torch.sigmoid(pred)
+
+        target = torch.squeeze(target,0)
+        target = target.detach().cpu().numpy()
+        pred = torch.squeeze(pred,0)
+        pred = pred.detach().cpu().numpy()
+        pred = pred.round()
+        targets_eval.append(target)
+        preds_eval.append(pred)
+    
+    acc = accuracy_score(preds_eval, targets_eval)
+    f1 = f1_score(preds_eval, targets_eval)
+    logger.info(f'EVALUATION: F1-score: {f1}')
+
+    #Submition
+
+    import natsort
+    import glob
+
+    dfs = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data/uploadsample.csv", header=None)
+    submit_path = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data_splits/submit_path.csv")
+    test_dataset = TestDataset(df_path=submit_path)
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
+    preds_submit = []
+    for index, data in enumerate(test_dataloader):
+    
+        images_inputs = data
+        images_inputs = images_inputs.to(device)
+    
+        with torch.no_grad():
+
+            pred = model(images_inputs)
+            pred = torch.sigmoid(pred)
+
+        pred = torch.squeeze(pred,0)
+        pred = pred.detach().cpu().numpy()
+        pred = pred[0].round().astype(int)
+    
+        preds_submit.append(pred)
+
+    dfs[1] = preds_submit
+    dfs.to_csv("submit.csv", header=False, index=False)
+    
+    
 
 if __name__ == '__main__':
 

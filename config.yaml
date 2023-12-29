@@ -1,9 +1,6 @@
-dataset_name: 'custom'
 outpout_dir: results/
 prediction_dir: training_prediction/
-threshold: 0.5
-alpha: 0.5 #weight of loss for multi training training
-loss: "cross_entropy" # v
+loss: "BCE"
 gpu_device: 0
 lr: 1e-4
 batch_size: 4

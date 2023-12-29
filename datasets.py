@@ -184,5 +184,23 @@ class EvalDataset(Dataset):
 
     def __len__(self):
         return len(self.df_path)
+    
+class TestDataset(Dataset):
+
+
+    def __init__(self, df_path):
+        
+        self.df_path = df_path
+
+    def __getitem__(self, index):
+
+        img_path = self.df_path.image_path.iloc[index]
+        image = image_preprocessing(img_path)
+        image = torch.Tensor(image)        
+
+        return image
+
+    def __len__(self):
+        return len(self.df_path)
 
     
