@@ -1,4 +1,4 @@
-import argparse
+import os
 import torch
 
 import pandas as pd
@@ -7,13 +7,13 @@ from datasets import EvalDataset
 from torch.utils.data.dataloader import DataLoader
 
 from sklearn.metrics import accuracy_score, f1_score
-from models import Unet
+import timm
 
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def auto_eval(model_path, model_architecture,channel):
+def auto_eval(model_path, model_architecture, save_path):
     """
     Main function to test the trained model on the given test data.
 
@@ -23,10 +23,6 @@ def auto_eval(model_path, model_architecture,channel):
 
     """
     
-    
-    # model = Unet(num_channels=channel)
-    import timm 
-    #model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', num_classes=1)
     model = timm.create_model(model_architecture, pretrained=True, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
@@ -64,6 +60,13 @@ def auto_eval(model_path, model_architecture,channel):
     acc = accuracy_score(preds_eval, targets_eval)
     f1 = f1_score(preds_eval, targets_eval)
 
+    metrics = {'accuracy': acc, 'F1': f1}
+
+    save_path = os.path.join(save_path, 'eval_metrics.json')
+    import json
+    with open(save_path, 'w') as fp:
+        json.dump(metrics, fp)
+
     logger.info(f'EVALUATION: Accuracy {acc} - F1-score: {f1}')
     logger.info("Done")
 
@@ -74,5 +77,4 @@ def auto_eval(model_path, model_architecture,channel):
 #     parser = argparse.ArgumentParser(description='Evaluation data generation', fromfile_prefix_chars='@')
 #     parser.add_argument('-c', '--checkpoint_path',type=str,   help='path to a checkpoint to load', default='')
 #     args = parser.parse_args()
-    
 #     main(args)

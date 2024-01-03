@@ -44,7 +44,6 @@ def main(config):
     """
 
     # load conf file for training
-    OUTPUT_DIR = config['outpout_dir']
     PREDICTION_DIR = config['prediction_dir']
     REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
@@ -72,11 +71,9 @@ def main(config):
     start_training_date = datetime.datetime.now()
     logger.info("start training session '{}'".format(start_training_date))
     date = start_training_date.strftime('%Y_%m_%d_%H_%M_%S')
-    OUTPUT_DIR = os.path.join(OUTPUT_DIR, '{}'.format(date))
-    log_filename = os.path.join(OUTPUT_DIR, "train.log")
-    logger.add(log_filename, backtrace=False, diagnose=True)
-    logger.info("output directory: {}".format(OUTPUT_DIR))
-    logger.info("------")
+    # OUTPUT_DIR = os.path.join(OUTPUT_DIR, '{}'.format(date))
+    # logger.info("output directory: {}".format(OUTPUT_DIR))
+    
 
     TENSORBOARD_DIR = 'tensorboard'
     tensorboard_path = os.path.join(LOG_DIR, TENSORBOARD_DIR)
@@ -84,11 +81,13 @@ def main(config):
     if not os.path.exists(tensorboard_path):
         os.makedirs(tensorboard_path, exist_ok=True)
 
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    if not os.path.exists(PREDICTION_DIR):
+        os.makedirs(PREDICTION_DIR)
 
     prediction_dir = os.path.join(PREDICTION_DIR, '{}'.format(date))
     os.makedirs(prediction_dir)
+    log_filename = os.path.join(prediction_dir, "train.log")
+    logger.add(log_filename, backtrace=False, diagnose=True)
 
     cudnn.benchmark = True
     if TBP is not None:
@@ -118,7 +117,6 @@ def main(config):
     # best score with 0.71
     #model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', pretrained=True,num_classes=1)
     #  0.732142857143
-
     model = timm.create_model(MODEL_ARCHITECTURE, pretrained=True, num_classes=1)
     
 
@@ -281,7 +279,7 @@ def main(config):
     
     logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
 
-    torch.save(best_weights, os.path.join(OUTPUT_DIR, 'best.pth'))
+    torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
     logger.info('Training Done')
     logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
     # Measure total training time
@@ -293,14 +291,15 @@ def main(config):
     model_size = estimate_model_size(model)
     logger.info("model size: {}".format(model_size))
     df_val_metrics['model_size'] = model_size
-    
     df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
     
     if AUTO_EVAL:
 
         from eval import auto_eval
-        model_path = os.path.join(OUTPUT_DIR, 'best.pth')
-        preds_eval, targets_eval = auto_eval(model_path=model_path,model_architecture=MODEL_ARCHITECTURE, channel=CHANNEL)
+        model_path = os.path.join(prediction_dir, 'best.pth')
+        preds_eval, targets_eval = auto_eval(model_path=model_path,
+                                            model_architecture=MODEL_ARCHITECTURE, 
+                                            save_path=prediction_dir)
         plot_confusion_matrix(preds_eval,targets_eval,prediction_dir)
 
 
