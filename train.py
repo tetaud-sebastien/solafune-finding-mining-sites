@@ -60,20 +60,10 @@ def main(config):
     LOSS_FUNC = config['loss']
     AUTO_EVAL = config['auto_eval']
 
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed(SEED)
-    torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    
+    seed_everything(seed=SEED)
     start_training_date = datetime.datetime.now()
     logger.info("start training session '{}'".format(start_training_date))
     date = start_training_date.strftime('%Y_%m_%d_%H_%M_%S')
-    # OUTPUT_DIR = os.path.join(OUTPUT_DIR, '{}'.format(date))
-    # logger.info("output directory: {}".format(OUTPUT_DIR))
-    
 
     TENSORBOARD_DIR = 'tensorboard'
     tensorboard_path = os.path.join(LOG_DIR, TENSORBOARD_DIR)
@@ -96,7 +86,6 @@ def main(config):
         logger.info("------")
 
         command = f'tensorboard --logdir {tensorboard_path} --port {TBP} --host localhost --load_fast=true'
-        # tensorboard_process = subprocess.Popen(shlex.split(command), env=os.environ.copy())
 
         train_tensorboard_writer = SummaryWriter(
             os.path.join(tensorboard_path, 'train'), flush_secs=30)
@@ -118,7 +107,6 @@ def main(config):
     #model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', pretrained=True,num_classes=1)
     #  0.732142857143
     model = timm.create_model(MODEL_ARCHITECTURE, pretrained=True, num_classes=1)
-    
 
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
