@@ -2,6 +2,9 @@ data/
 results/
 runs/
 training_prediction/
+submit.csv
+models/
+data_splits_no_stratify/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
