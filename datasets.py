@@ -6,8 +6,9 @@ from torch.utils.data import Dataset
 from torchvision import transforms, utils
 from loguru import logger
 import rioxarray as xr
-
-
+from PIL import Image
+from albumentations.pytorch import ToTensorV2
+import albumentations as A
 import torchvision.transforms.functional as F
 
 import warnings
@@ -38,96 +39,130 @@ def center_crop(img, dim):
     return np.ascontiguousarray(crop_img)
 
 
-class CustomDataAugmentation():
-    """
-    Custom data augmentation class for adding Gaussian noise to an image.
-    """
+# class CustomDataAugmentation():
+#     """
+#     Custom data augmentation class for adding Gaussian noise to an image.
+#     """
 
-    def __init__(self, image, mask, mean=0, std_dev=0.1):
-        """
-        Initialize the augmentation class.
+#     def __init__(self, image, mask, mean=0, std_dev=0.1):
+#         """
+#         Initialize the augmentation class.
 
-        Args:
-            image (numpy.ndarray): The input image (numpy array).
-            mask (numpy.ndarray): The input mask (numpy array).
-            mean (float): Mean of the Gaussian distribution (default is 0).
-            std_dev (float): Standard deviation of the Gaussian distribution (default is 0.1).
-        """
-        self.image = image
-        self.mask = mask
-        self.mean = mean
-        self.std_dev = std_dev
+#         Args:
+#             image (numpy.ndarray): The input image (numpy array).
+#             mask (numpy.ndarray): The input mask (numpy array).
+#             mean (float): Mean of the Gaussian distribution (default is 0).
+#             std_dev (float): Standard deviation of the Gaussian distribution (default is 0.1).
+#         """
+#         self.image = image
+#         self.mask = mask
+#         self.mean = mean
+#         self.std_dev = std_dev
 
-    def add_gaussian_noise(self):
-        """
-        Add Gaussian noise to the image.
+#     def add_gaussian_noise(self):
+#         """
+#         Add Gaussian noise to the image.
 
-        Returns:
-            numpy.ndarray: Image with added Gaussian noise.
-        """
-        # Generate Gaussian noise
-        gaussian_noise = np.random.normal(self.mean, self.std_dev, self.image.shape).astype(np.uint8)
+#         Returns:
+#             numpy.ndarray: Image with added Gaussian noise.
+#         """
+#         # Generate Gaussian noise
+#         gaussian_noise = np.random.normal(self.mean, self.std_dev, self.image.shape).astype(np.uint8)
     
-        # Add noise to the image
-        noisy_image = cv2.add(self.image, gaussian_noise)
+#         # Add noise to the image
+#         noisy_image = cv2.add(self.image, gaussian_noise)
     
-        # Clip the values to stay within the valid image range (0-255)
-        noisy_image = np.clip(noisy_image, 0, 255)
+#         # Clip the values to stay within the valid image range (0-255)
+#         noisy_image = np.clip(noisy_image, 0, 255)
     
-        return noisy_image
+#         return noisy_image
 
 
-def get_random_crop(image, mask, crop_width=256, crop_height=256):
-    """
-    Get a random crop from the image and mask.
+# def get_random_crop(image, mask, crop_width=256, crop_height=256):
+#     """
+#     Get a random crop from the image and mask.
 
-    Args:
-        image (numpy.ndarray): The input image (numpy array).
-        mask (numpy.ndarray): The input mask (numpy array).
-        crop_width (int): Width of the crop (default is 256).
-        crop_height (int): Height of the crop (default is 256).
+#     Args:
+#         image (numpy.ndarray): The input image (numpy array).
+#         mask (numpy.ndarray): The input mask (numpy array).
+#         crop_width (int): Width of the crop (default is 256).
+#         crop_height (int): Height of the crop (default is 256).
 
-    Returns:
-        tuple: A tuple containing the cropped image and mask as numpy arrays.
-    """
-    max_x = mask.shape[1] - crop_width
-    max_y = mask.shape[0] - crop_height
-    x = np.random.randint(0, max_x)
-    y = np.random.randint(0, max_y)
-    crop_mask = mask[y: y + crop_height, x: x + crop_width]
-    crop_image = image[y: y + crop_height, x: x + crop_width, :]
-    return crop_image, crop_mask
+#     Returns:
+#         tuple: A tuple containing the cropped image and mask as numpy arrays.
+#     """
+#     max_x = mask.shape[1] - crop_width
+#     max_y = mask.shape[0] - crop_height
+#     x = np.random.randint(0, max_x)
+#     y = np.random.randint(0, max_y)
+#     crop_mask = mask[y: y + crop_height, x: x + crop_width]
+#     crop_image = image[y: y + crop_height, x: x + crop_width, :]
+#     return crop_image, crop_mask
+
+
+def data_augmentation(image):
+    
+
+    apply_transform = ["yes", "no"]
+    
+    if random.choice(apply_transform)=="yes":
+        
+        
+        # Define your augmentation transformations
+        transform = A.Compose([
+            A.HorizontalFlip(p=0.5),  # Random horizontal flip with a probability of 0.5
+            A.VerticalFlip(p=0.5),    # Random vertical flip with a probability of 0.5
+            # Add more augmentations as needed
+        ])
+        
+        # Convert the xarray image to a NumPy array
+        image_np = image.transpose('y', 'x', 'band')  # Transpose the image if needed
+        
+        # Perform augmentation on the image
+        augmented = transform(image=image_np.values)
+        
+        # Retrieve the augmented image
+        augmented_image = augmented['image']
+        augmented_image = np.transpose(augmented_image,(2,1,0))
+        
+    
+    else:
+        
+    
+        augmented_image = image.values
+        
+    return augmented_image
 
 
 def normalize(band):
     band_min, band_max = (band.min(), band.max())
     return ((band-band_min)/((band_max - band_min)))
 
-
 def image_preprocessing(image_path):
 
     image = xr.open_rasterio(image_path, masked=False).values
     
-    red = image[3,:,:]
-    green = image[2,:,:]
-    blue = image[1,:,:]
+    # red = image[3,:,:]
+    # green = image[2,:,:]
+    # blue = image[1,:,:]
+    # rgb_composite_n = np.dstack((red, green, blue))
+
+    red = image[3,:,:]*255*2
+    green = image[2,:,:]*255*2
+    blue = image[1,:,:]*255*2
     
-    red_n = normalize(red)
-    green_n = normalize(green)
-    blue_n = normalize(blue)
-    rgb_composite_n = np.dstack((red_n, green_n, blue_n))
-    rgb_composite_n = ((rgb_composite_n - image.min()) / (rgb_composite_n.max() - rgb_composite_n.min()))
-    # rgb_composite_n = rgb_composite_n.astype(np.uint8)
 
-    return image
+    rgb_image = np.stack((red, green, blue), axis=2).astype(np.uint8)
+    rgb_image = Image.fromarray(rgb_image)
 
+    return rgb_image
 
 class TrainDataset(Dataset):
     """
     Custom training dataset class.
     """
 
-    def __init__(self, df_path):
+    def __init__(self, df_path, data_augmentation):
         """
         Initialize the training dataset.
 
@@ -136,21 +171,29 @@ class TrainDataset(Dataset):
             transforms (callable): A function/transform to apply to the data (default is None).
         """
         self.df_path = df_path
+        self.data_augmentation = data_augmentation
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
-
-        # logger.debug(img_path)
-
         image = image_preprocessing(img_path)
 
+        # if self.data_augmentation: 
+        #     image = data_augmentation(image)
+        # else:
+        #     image = image.values
+        
 
-        # image = cv2.resize(image, (256, 256),interpolation=cv2.INTER_NEAREST)
-        
         # image = np.transpose(image, (2,1,0))
-        image = torch.Tensor(image)
-        
+        # image = torch.Tensor(image)
+
+        image = self.transform(image)
+    
         target = self.df_path.target.iloc[index]
         
         return image, target
@@ -165,17 +208,20 @@ class EvalDataset(Dataset):
     def __init__(self, df_path):
         
         self.df_path = df_path
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
-
         image = image_preprocessing(img_path)
+        image = self.transform(image)
 
-        # image = cv2.resize(image, (256, 256),interpolation=cv2.INTER_NEAREST)
 
         # image = np.transpose(image, (2,1,0))
-        image = torch.Tensor(image)        
+        # image = torch.Tensor(image)        
 
         target = self.df_path.target.iloc[index] 
 
@@ -191,13 +237,19 @@ class TestDataset(Dataset):
     def __init__(self, df_path):
         
         self.df_path = df_path
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
         image = image_preprocessing(img_path)
-        image = torch.Tensor(image)        
-
+        # image = np.transpose(image, (2,1,0))
+        # image = torch.Tensor(image)
+        image = self.transform(image)
+    
         return image
 
     def __len__(self):

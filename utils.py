@@ -30,6 +30,35 @@ def plot_confusion_matrix(y_pred, y_true, save_path):
     plt.savefig(os.path.join(save_path, 'confusion_matrix.png'))
 
 
+def plot_loss_metrics(metrics, save_path):
+
+    """
+    Generate a plot displaying 'loss_train' and 'loss_eval' metrics against epochs.
+
+    Parameters:
+    metrics (dict): A dictionary containing metrics for different epochs.
+                    Each key represents an epoch number, and the corresponding value is a dictionary
+                    containing metrics such as 'loss_train' and 'loss_eval'.
+
+    Returns:
+    None: Displays a plot showing 'loss_train' and 'loss_eval' against the epochs.
+    """
+    epochs = list(metrics.keys())
+    loss_train = [metrics[epoch]['loss_train'] for epoch in epochs]
+    loss_eval = [metrics[epoch]['loss_eval'] for epoch in epochs]
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, loss_train, label='Loss Train')
+    plt.plot(epochs, loss_eval, label='Loss Eval')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Training and Evaluation Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, 'loss_plot.png'))  # Save the plot as an image
+    plt.show()
+
 class AverageMeter(object):
     def __init__(self):
         self.reset()

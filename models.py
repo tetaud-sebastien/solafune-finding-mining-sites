@@ -112,6 +112,7 @@ class Unet(nn.Module):
         
         # Encoder
         self.conv0 = Conv2dBlock(in_channels=num_channels, out_channels=64, kernel_size=3, stride=2, padding=1, dilation=1, activation='relu',norm='bn')
+        
         self.conv1 = Conv2dBlock(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, dilation=1, activation='relu',norm='bn')
         self.conv2 = Conv2dBlock(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, dilation=1, activation='relu',norm='bn')
         self.conv3 = Conv2dBlock(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1, dilation=1, activation='relu',norm='bn')
@@ -181,13 +182,13 @@ class Unet(nn.Module):
         return X9
 
 
-if __name__== "__main__":
+# if __name__== "__main__":
 
 
-    x = torch.rand((4,3,512,512))
-    net = Unet(num_channels=3)
-    out = net(x)
-    print(out.shape)
-    print(out)
+#     x = torch.rand((4,3,512,512))
+#     net = Unet(num_channels=3)
+#     out = net(x)
+#     print(out.shape)
+#     print(out)
 
 
