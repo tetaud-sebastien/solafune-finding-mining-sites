@@ -150,8 +150,6 @@ def image_preprocessing(image_path):
     red = image[3,:,:]*255*2
     green = image[2,:,:]*255*2
     blue = image[1,:,:]*255*2
-    
-
     rgb_image = np.stack((red, green, blue), axis=2).astype(np.uint8)
     rgb_image = Image.fromarray(rgb_image)
 
