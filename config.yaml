@@ -15,4 +15,4 @@ workers: 8
 seed: 123
 log_dir : log/
 tbp: 8888
-auto_eval: False
+auto_eval: True
