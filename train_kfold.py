@@ -152,7 +152,9 @@ def main(config):
 
     ####
     from torch.utils.data import DataLoader, SubsetRandomSampler
-    combined_dataset = TrainDataset(df_path=train_path, data_augmentation=DATA_AUGMENTATION)
+
+    dataset_path = pd.read_csv('data_splits/train_path.csv')
+    combined_dataset = TrainDataset(df_path=dataset_path, data_augmentation=DATA_AUGMENTATION)
     
     from sklearn.model_selection import StratifiedKFold
 
@@ -161,20 +163,20 @@ def main(config):
 
     stratified_kfold = StratifiedKFold(n_splits=num_splits)
 
-    for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(train_path.image_path,train_path.target)):
+    for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
         print(f"Fold {fold + 1}:")
 
-        train_subsampler = SubsetRandomSampler(train_indices)
-        valid_subsampler = SubsetRandomSampler(val_indices)
-
-        # sampler를 이용한 DataLoader 정의
-        train_dataloader = torch.utils.data.DataLoader(combined_dataset, batch_size=8, sampler=train_subsampler)
-        eval_dataloader = torch.utils.data.DataLoader(combined_dataset, batch_size=1, sampler=valid_subsampler)
-
+        fold_df_train = dataset_path.iloc[train_indices]
+        fold_df_val = dataset_path.iloc[val_indices]
         
 
-        optimizer = optim.Adam(model.parameters(), lr=LR)
+        train_dataset = TrainDataset(df_path=fold_df_train, data_augmentation=DATA_AUGMENTATION)
+        train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+
+        eval_dataset = EvalDataset(df_path=fold_df_val)
+        eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
+
 
         for epoch in range(NUM_EPOCHS):
 
@@ -182,7 +184,7 @@ def main(config):
             eval_losses = AverageMeter()
             model.train()
 
-            with tqdm(total=(len(combined_dataset) - len(combined_dataset) % BATCH_SIZE), ncols = 100, colour='#3eedc4') as t:
+            with tqdm(total=(len(train_dataset) - len(train_dataset) % BATCH_SIZE), ncols = 100, colour='#3eedc4') as t:
                 t.set_description('epoch: {}/{}'.format(epoch, NUM_EPOCHS - 1))
 
                 for data in train_dataloader:
@@ -293,8 +295,10 @@ def main(config):
 
     
     logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
+    weights = copy.deepcopy(model.state_dict())
+    # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
+    torch.save(weights, os.path.join(prediction_dir, 'best.pth'))
 
-    torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
     logger.info('Training Done')
     logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
     # Measure total training time
