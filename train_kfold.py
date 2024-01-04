@@ -49,6 +49,7 @@ def main(config):
     REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
     PRETRAINED = config['pretrained']
+    IMAGE_NET_NORMALIZE = config['image_net_normalize']
     LAMBDA_L1 = config['lambda_l1']
     NUMBER_KFOLD = config['number_kfold']
     DATA_AUGMENTATION = config['data_augmentation']
@@ -147,21 +148,21 @@ def main(config):
     dataset_path = pd.read_csv('data_splits/train_path.csv')
     from sklearn.model_selection import StratifiedKFold
 
-    stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD,random_state=SEED)
+    stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD)
 
     model.train()
 
     for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
-        print(f"Fold {fold + 1}:")
+        print(f"Fold {fold}:")
         model.train()
         fold_df_train = dataset_path.iloc[train_indices]
         fold_df_val = dataset_path.iloc[val_indices]
         
-        train_dataset = TrainDataset(df_path=fold_df_train, data_augmentation=DATA_AUGMENTATION)
+        train_dataset = TrainDataset(df_path=fold_df_train, normalize=IMAGE_NET_NORMALIZE,  data_augmentation=DATA_AUGMENTATION)
         train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-        eval_dataset = EvalDataset(df_path=fold_df_val)
+        eval_dataset = EvalDataset(df_path=fold_df_val, normalize=IMAGE_NET_NORMALIZE)
         eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
         fold_val_f1 = []
@@ -311,7 +312,8 @@ def main(config):
         from eval import auto_eval
         model_path = os.path.join(prediction_dir, 'best.pth')
         preds_eval, targets_eval = auto_eval(model_path=model_path,
-                                            model_architecture=MODEL_ARCHITECTURE, 
+                                            model_architecture=MODEL_ARCHITECTURE,
+                                            normalize=IMAGE_NET_NORMALIZE,
                                             save_path=prediction_dir)
         plot_confusion_matrix(preds_eval,targets_eval,prediction_dir)
 
