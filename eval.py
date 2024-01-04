@@ -57,8 +57,8 @@ def auto_eval(model_path, model_architecture, save_path):
         targets_eval.append(target)
         preds_eval.append(pred)
     
-    acc = accuracy_score(preds_eval, targets_eval)
-    f1 = f1_score(preds_eval, targets_eval)
+    acc = accuracy_score(targets_eval, preds_eval)
+    f1 = f1_score(targets_eval, preds_eval)
 
     metrics = {'accuracy': acc, 'F1': f1}
 

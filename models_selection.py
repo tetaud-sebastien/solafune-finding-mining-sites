@@ -13,7 +13,7 @@ x  = torch.randn(1, 3, 512, 512)
 
 list_models = []
 
-index = all_pretrained_models_available.index("deit_base_distilled_patch16_224.fb_in1k")
+index = all_pretrained_models_available.index("ese_vovnet39b.ra_in1k")
 
 for m in all_pretrained_models_available[index+1:]:
 
@@ -28,7 +28,7 @@ for m in all_pretrained_models_available[index+1:]:
         logger.info(f'output shape {pred.shape}')
         models = {'models' : list_models}
 
-        with open('models_1.json', 'w') as fp:
+        with open('models_2.json', 'w') as fp:
             json.dump(models, fp)
 
     except:
@@ -46,7 +46,7 @@ for m in all_pretrained_models_available[index+1:]:
 
 models = {'models' : list_models}
 
-with open('models_1.json', 'w') as fp:
+with open('models_2.json', 'w') as fp:
     json.dump(models, fp)
 
 

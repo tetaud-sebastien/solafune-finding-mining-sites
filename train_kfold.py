@@ -16,11 +16,11 @@ from tqdm import tqdm
 from datasets import TrainDataset, EvalDataset
 from utils import *
 from sklearn.metrics import accuracy_score, f1_score
-
+import timm 
 from loguru import logger
 import random
 import numpy as np
-
+import json
 import warnings
 warnings.simplefilter('ignore')
 
@@ -48,7 +48,9 @@ def main(config):
     PREDICTION_DIR = config['prediction_dir']
     REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
+    PRETRAINED = config['pretrained']
     LAMBDA_L1 = config['lambda_l1']
+    NUMBER_KFOLD = config['number_kfold']
     DATA_AUGMENTATION = config['data_augmentation']
     SEED = config['seed']
     CHANNEL = config['channel']
@@ -61,6 +63,7 @@ def main(config):
     LOSS_FUNC = config['loss']
     AUTO_EVAL = config['auto_eval']
 
+    # Seed for reproductibility training
     seed_everything(seed=SEED)
     start_training_date = datetime.datetime.now()
     logger.info("start training session '{}'".format(start_training_date))
@@ -99,15 +102,9 @@ def main(config):
         train_tensorboard_writer = None
         val_tensorboard_writer = None
 
-    # Seed for reproductibility training
-    # seed_everything(seed=SEED)
-    # torch.manual_seed(SEED)
-
-    import timm 
-    # best score with 0.71
-    #model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', pretrained=True,num_classes=1)
-    #  0.732142857143
-    model = timm.create_model(MODEL_ARCHITECTURE, pretrained=True, num_classes=1)
+    
+    
+    model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
 
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
@@ -126,20 +123,17 @@ def main(config):
         criterion_L1 = nn.L1Loss()
 
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    # Load train and test data path
-    train_path = pd.read_csv('data_splits/train_path.csv')
-    # train_path = train_path[:100]
-    valid_path = pd.read_csv('data_splits/valid_path.csv')
-    # valid_path = valid_path[:10]
-    logger.info("Number of Training data {0:d}".format(len(train_path)))
-    logger.info("------")
-    logger.info("Number of Validation data {0:d}".format(len(valid_path)))
-    logger.info("------")
-
-
+    # # Load train and test data path
+    # train_path = pd.read_csv('data_splits/train_path.csv')
+    # # train_path = train_path[:100]
+    # valid_path = pd.read_csv('data_splits/valid_path.csv')
+    # # valid_path = valid_path[:10]
+    # logger.info("Number of Training data {0:d}".format(len(train_path)))
+    # logger.info("------")
+    # logger.info("Number of Validation data {0:d}".format(len(valid_path)))
+    # logger.info("------")
     #train_dataset = TrainDataset(df_path=train_path, data_augmentation=DATA_AUGMENTATION)
     # train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-
     # eval_dataset = EvalDataset(df_path=valid_path)
     # eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
@@ -150,40 +144,33 @@ def main(config):
     metrics_dict = {}
 
 
-    ####
-    from torch.utils.data import DataLoader, SubsetRandomSampler
-
     dataset_path = pd.read_csv('data_splits/train_path.csv')
-    combined_dataset = TrainDataset(df_path=dataset_path, data_augmentation=DATA_AUGMENTATION)
-    
     from sklearn.model_selection import StratifiedKFold
 
-    # Define the number of splits for cross-validation
-    num_splits = 5
+    stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD,random_state=SEED)
 
-    stratified_kfold = StratifiedKFold(n_splits=num_splits)
+    model.train()
 
     for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
         print(f"Fold {fold + 1}:")
-
+        model.train()
         fold_df_train = dataset_path.iloc[train_indices]
         fold_df_val = dataset_path.iloc[val_indices]
         
-
         train_dataset = TrainDataset(df_path=fold_df_train, data_augmentation=DATA_AUGMENTATION)
         train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
         eval_dataset = EvalDataset(df_path=fold_df_val)
         eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
+        fold_val_f1 = []
 
         for epoch in range(NUM_EPOCHS):
 
             train_losses = AverageMeter()
             eval_losses = AverageMeter()
-            model.train()
-
+        
             with tqdm(total=(len(train_dataset) - len(train_dataset) % BATCH_SIZE), ncols = 100, colour='#3eedc4') as t:
                 t.set_description('epoch: {}/{}'.format(epoch, NUM_EPOCHS - 1))
 
@@ -218,10 +205,9 @@ def main(config):
                     step += 1
 
             model.eval()
-
-            
             targets = []
             preds = []
+
             # Model Evaluation
             for index, data in enumerate(eval_dataloader):
                 
@@ -257,60 +243,68 @@ def main(config):
                                     'loss_train': train_losses.avg,
                                     'loss_eval': eval_losses.avg}
 
+            fold_val_f1.append(f1)
             plot_loss_metrics(metrics=metrics_dict, save_path=prediction_dir)
 
-            df_metrics = pd.DataFrame(metrics_dict).T
-            df_mean_metrics = df_metrics.mean()
-            df_mean_metrics = pd.DataFrame(df_mean_metrics).T
+            # df_metrics = pd.DataFrame(metrics_dict).T
+            # df_mean_metrics = df_metrics.mean()
+            # df_mean_metrics = pd.DataFrame(df_mean_metrics).T
 
-            if epoch == 0:
+            # if epoch == 0:
 
-                df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
-                df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+            #     df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
+            #     df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
 
-            else:
-                df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
-                df_val_metrics = df_val_metrics.reset_index(drop=True)
+            # else:
+            #     df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
+            #     df_val_metrics = df_val_metrics.reset_index(drop=True)
 
-            dashboard = Dashboard(df_val_metrics)
-            dashboard.generate_dashboard()
-            dashboard.save_dashboard(directory_path=prediction_dir)
+            # dashboard = Dashboard(df_val_metrics)
+            # dashboard.generate_dashboard()
+            # dashboard.save_dashboard(directory_path=prediction_dir)
             # Access the mean values
             logger.info(f'Epoch {epoch} Eval {LOSS_FUNC} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
-
             # Save best model
-            if epoch == 0:
+            # if epoch == 0:
 
-                best_epoch = epoch
-                best_f1 = f1
-                best_loss = eval_losses.avg
-                best_weights = copy.deepcopy(model.state_dict())
+            #     best_epoch = epoch
+            #     best_f1 = f1
+            #     best_loss = eval_losses.avg
+            #     best_weights = copy.deepcopy(model.state_dict())
 
-            elif f1 > best_f1:
+            # elif f1 > best_f1:
 
-                best_epoch = epoch
-                best_f1 = f1
-                best_loss = eval_losses.avg
-                best_weights = copy.deepcopy(model.state_dict())
+            #     best_epoch = epoch
+            #     best_f1 = f1
+            #     best_loss = eval_losses.avg
+            #     best_weights = copy.deepcopy(model.state_dict())
+
+        logger.info(f'FOLD {fold + 1} - AVG F1: {np.mean(fold_val_f1)}')
 
     
-    logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
+    # logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
+    
+    # save model 
     weights = copy.deepcopy(model.state_dict())
     # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
     torch.save(weights, os.path.join(prediction_dir, 'best.pth'))
-
     logger.info('Training Done')
     logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
+    # save training config file
+    config_filename = os.path.join(prediction_dir,'trainin_config.json')
+    with open(config_filename, 'w') as fp:
+            json.dump(config, fp)
     # Measure total training time
     end_training_date = datetime.datetime.now()
     training_duration = end_training_date - start_training_date
     logger.info('Training Duration: {}'.format(str(training_duration)))
-    df_val_metrics['Training_duration'] = training_duration
-    df_val_metrics['nb_parameters'] = nb_parameters
     model_size = estimate_model_size(model)
     logger.info("model size: {}".format(model_size))
-    df_val_metrics['model_size'] = model_size
-    df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
+
+    # df_val_metrics['Training_duration'] = training_duration
+    # df_val_metrics['nb_parameters'] = nb_parameters
+    # df_val_metrics['model_size'] = model_size
+    # df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
     
     if AUTO_EVAL:
 
