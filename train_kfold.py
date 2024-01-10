@@ -1,27 +1,29 @@
 import copy
 import datetime
-import os
-import yaml
-import pandas as pd
-
-import torch
-from torch import nn
-import torch.optim as optim
-import torch.backends.cudnn as cudnn
-from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import ConcatDataset
-from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as T
-from tqdm import tqdm
-from datasets import TrainDataset, EvalDataset
-from utils import *
-from sklearn.metrics import accuracy_score, f1_score
-import timm 
-from loguru import logger
-import random
-import numpy as np
 import json
+import os
+import random
 import warnings
+
+import numpy as np
+import pandas as pd
+import timm
+import torch
+import torch.backends.cudnn as cudnn
+import torch.optim as optim
+import torchvision.transforms as T
+import yaml
+from loguru import logger
+from sklearn.metrics import accuracy_score, f1_score
+from torch import nn
+from torch.utils.data import ConcatDataset
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
+
+from datasets import EvalDataset, TrainDataset
+from utils import *
+
 warnings.simplefilter('ignore')
 
 
@@ -111,11 +113,12 @@ def main(config):
 
         criterion_L1 = nn.L1Loss()
 
+
+    models_path = []
     best_epoch = 0
     best_loss = 0.0
     step = 0
     metrics_dict = {}
-
     folds_val_f1 = []
 
     dataset_path = pd.read_csv('data_splits/train_path.csv')
@@ -269,6 +272,9 @@ def main(config):
 
         model_name = f"{fold}_model.pth"
         model_path = os.path.join(prediction_dir, model_name)
+
+        models_path.append(model_path)
+
         torch.save(best_weights, model_path)
         logger.info(f'FOLD {fold} - AVG F1: {np.mean(fold_val_f1)}')
         folds_val_f1.append(np.mean(fold_val_f1))
@@ -277,7 +283,7 @@ def main(config):
     avg_f1_score = np.mean(folds_val_f1)
     logger.info(f'AVG F1 score: {avg_f1_score}')
     
-    config_filename = os.path.join(prediction_dir,'trainin_config.json')
+    config_filename = os.path.join(prediction_dir,'training_config.json')
     with open(config_filename, 'w') as fp:
             json.dump(config, fp)
     # Measure total training time
@@ -291,16 +297,35 @@ def main(config):
     # df_val_metrics['model_size'] = model_size
     # df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
     
+
+    # Evaluation Ensemble Model
+    logger.info("##############")
+    logger.info("EVALUATION")
+    logger.info("##############")
+
     if AUTO_EVAL:
 
         from eval import auto_eval
-        model_path = os.path.join(prediction_dir, 'best.pth')
-        preds_eval, targets_eval = auto_eval(model_path=model_path,
-                                            model_architecture=MODEL_ARCHITECTURE,
-                                            normalize=IMAGE_NET_NORMALIZE,
-                                            save_path=prediction_dir)
-        plot_confusion_matrix(preds_eval, targets_eval,prediction_dir)
 
+        df_val = pd.DataFrame()
+        for i in range(len(models_path)):
+
+            logger.info(f"model_{i}: {models_path[i]}")
+            preds_eval, targets_eval = auto_eval(model_path=models_path[i],
+                                                 model_architecture=MODEL_ARCHITECTURE,
+                                                 normalize=IMAGE_NET_NORMALIZE,
+                                                 save_path=prediction_dir)
+            
+            model_name = f"model_{i}"
+            df_val[model_name] = preds_eval
+        df_val['majority'] = df_val.mode(axis=1)[0]
+        df_val['target'] = targets_eval
+        df_val.to_csv(os.path.join(prediction_dir,'ensemble_model.csv'))
+        # Confusion matrix of the ensemble model
+        ensemble_pred = df_val['majority'].values
+        plot_confusion_matrix(ensemble_pred, targets_eval, prediction_dir)
+        f1_eval = f1_score(preds, targets)
+        logger.info(f"ENSEMBLE MODEL F1-SCORE: {f1_eval}")      
 
 if __name__ == '__main__':
 

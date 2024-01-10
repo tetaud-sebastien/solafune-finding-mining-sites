@@ -6,14 +6,14 @@ pretrained: True
 image_net_normalize : False
 channel : 3
 loss: "BCE"
-number_kfold: 10
+number_kfold: 5
 regularization: False
 lambda_l1: 0.1
 data_augmentation: True
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 40
+epochs: 5
 workers: 8 
 seed: 123
 log_dir : log/
