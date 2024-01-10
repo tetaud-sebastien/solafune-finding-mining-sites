@@ -105,15 +105,9 @@ def main(config):
 
     
     
-    model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
+    # model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
 
-    logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
-    logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
-    logger.info("------")
-    device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
-    model = model.to(device='cuda')
-    nb_parameters = count_model_parameters(model=model)
-    logger.info("Number of parameters {}: ".format(nb_parameters))
+
 
     # Define Optimizer
     if LOSS_FUNC == "BCE":
@@ -123,7 +117,7 @@ def main(config):
 
         criterion_L1 = nn.L1Loss()
 
-    optimizer = optim.Adam(model.parameters(), lr=LR)
+    
     # # Load train and test data path
     # train_path = pd.read_csv('data_splits/train_path.csv')
     # # train_path = train_path[:100]
@@ -138,24 +132,37 @@ def main(config):
     # eval_dataset = EvalDataset(df_path=valid_path)
     # eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
-    best_weights = copy.deepcopy(model.state_dict())
+    # best_weights = copy.deepcopy(model.state_dict())
     best_epoch = 0
     best_loss = 0.0
     step = 0
     metrics_dict = {}
 
+    folds_val_f1 = []
 
     dataset_path = pd.read_csv('data_splits/train_path.csv')
     from sklearn.model_selection import StratifiedKFold
 
     stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD)
 
-    model.train()
+    
 
     for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
-        print(f"Fold {fold}:")
+        logger.info(f"Fold {fold}:")
+        
+        model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
+        optimizer = optim.Adam(model.parameters(), lr=LR)
+
+        logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
+        logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
+        logger.info("------")
+        device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+        model = model.to(device='cuda')
+        nb_parameters = count_model_parameters(model=model)
+        logger.info("Number of parameters {}: ".format(nb_parameters))
         model.train()
+
         fold_df_train = dataset_path.iloc[train_indices]
         fold_df_val = dataset_path.iloc[val_indices]
         
@@ -279,18 +286,24 @@ def main(config):
             #     best_f1 = f1
             #     best_loss = eval_losses.avg
             #     best_weights = copy.deepcopy(model.state_dict())
-
-        logger.info(f'FOLD {fold + 1} - AVG F1: {np.mean(fold_val_f1)}')
-
+            # save model 
+        weights = copy.deepcopy(model.state_dict())
+        model_name = f"{fold}_model.pth"
+        model_path = os.path.join(prediction_dir, model_name)
+        # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
+        torch.save(weights, model_path)
+        logger.info(f'FOLD {fold} - AVG F1: {np.mean(fold_val_f1)}')
+        folds_val_f1.append(np.mean(fold_val_f1))
     
     # logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
-    
-    # save model 
-    weights = copy.deepcopy(model.state_dict())
-    # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
-    torch.save(weights, os.path.join(prediction_dir, 'best.pth'))
-    logger.info('Training Done')
-    logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
+    avg_f1_score = np.mean(folds_val_f1)
+    logger.info(f'AVG F1 score: {avg_f1_score}')
+    # # save model 
+    # weights = copy.deepcopy(model.state_dict())
+    # # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
+    # torch.save(weights, os.path.join(prediction_dir, 'best.pth'))
+    # logger.info('Training Done')
+    # logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
     # save training config file
     config_filename = os.path.join(prediction_dir,'trainin_config.json')
     with open(config_filename, 'w') as fp:
@@ -301,7 +314,6 @@ def main(config):
     logger.info('Training Duration: {}'.format(str(training_duration)))
     model_size = estimate_model_size(model)
     logger.info("model size: {}".format(model_size))
-
     # df_val_metrics['Training_duration'] = training_duration
     # df_val_metrics['nb_parameters'] = nb_parameters
     # df_val_metrics['model_size'] = model_size
@@ -315,7 +327,7 @@ def main(config):
                                             model_architecture=MODEL_ARCHITECTURE,
                                             normalize=IMAGE_NET_NORMALIZE,
                                             save_path=prediction_dir)
-        plot_confusion_matrix(preds_eval,targets_eval,prediction_dir)
+        plot_confusion_matrix(preds_eval, targets_eval,prediction_dir)
 
 
 if __name__ == '__main__':

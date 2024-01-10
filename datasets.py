@@ -97,19 +97,16 @@ def normalize(band):
 def image_preprocessing(image_path):
 
     image = xr.open_rasterio(image_path, masked=False).values
+    red = image[3,:,:]
+    green = image[2,:,:]
+    blue = image[1,:,:]
+    red_n = normalize(red)
+    green_n = normalize(green)
+    blue_n = normalize(blue)
+    rgb_composite_n= np.dstack((red_n, green_n, blue_n))
     
-    # red = image[3,:,:]
-    # green = image[2,:,:]
-    # blue = image[1,:,:]
-    # rgb_composite_n = np.dstack((red, green, blue))
-
-    red = image[3,:,:]*255*2
-    green = image[2,:,:]*255*2
-    blue = image[1,:,:]*255*2
-    rgb_image = np.stack((red, green, blue), axis=2).astype(np.uint8)
-    rgb_image = Image.fromarray(rgb_image)
-
-    return rgb_image
+    
+    return rgb_composite_n
 
 
 class TrainDataset(Dataset):

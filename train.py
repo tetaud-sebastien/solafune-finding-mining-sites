@@ -47,6 +47,7 @@ def main(config):
     PREDICTION_DIR = config['prediction_dir']
     REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
+    IMAGE_NET_NORMALIZE = config['image_net_normalize']
     LAMBDA_L1 = config['lambda_l1']
     DATA_AUGMENTATION = config['data_augmentation']
     SEED = config['seed']
@@ -136,11 +137,11 @@ def main(config):
     logger.info("Number of Validation data {0:d}".format(len(valid_path)))
     logger.info("------")
 
-    train_dataset = TrainDataset(df_path=train_path, data_augmentation=DATA_AUGMENTATION)
+    train_dataset = TrainDataset(df_path=train_path, normalize=IMAGE_NET_NORMALIZE, data_augmentation=DATA_AUGMENTATION)
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     eval_dataset = EvalDataset(df_path=valid_path)
-    eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
+    eval_dataloader = DataLoader(dataset=eval_dataset, normalize=IMAGE_NET_NORMALIZE,batch_size=1, shuffle=False)
 
     best_weights = copy.deepcopy(model.state_dict())
     best_epoch = 0
@@ -222,8 +223,8 @@ def main(config):
             targets.append(target)
             preds.append(pred)
         
-        acc = accuracy_score(preds, targets)
-        f1 = f1_score(preds, targets)        
+        acc = accuracy_score(targets, preds)
+        f1 = f1_score(targets, preds)        
         metrics_dict[epoch] = { "F1": f1, "Accuracy": acc, 
                                 'loss_train': train_losses.avg,
                                 'loss_eval': eval_losses.avg}
