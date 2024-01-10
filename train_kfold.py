@@ -103,12 +103,6 @@ def main(config):
         train_tensorboard_writer = None
         val_tensorboard_writer = None
 
-    
-    
-    # model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
-
-
-
     # Define Optimizer
     if LOSS_FUNC == "BCE":
         criterion = nn.BCELoss()
@@ -117,22 +111,6 @@ def main(config):
 
         criterion_L1 = nn.L1Loss()
 
-    
-    # # Load train and test data path
-    # train_path = pd.read_csv('data_splits/train_path.csv')
-    # # train_path = train_path[:100]
-    # valid_path = pd.read_csv('data_splits/valid_path.csv')
-    # # valid_path = valid_path[:10]
-    # logger.info("Number of Training data {0:d}".format(len(train_path)))
-    # logger.info("------")
-    # logger.info("Number of Validation data {0:d}".format(len(valid_path)))
-    # logger.info("------")
-    #train_dataset = TrainDataset(df_path=train_path, data_augmentation=DATA_AUGMENTATION)
-    # train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-    # eval_dataset = EvalDataset(df_path=valid_path)
-    # eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
-
-    # best_weights = copy.deepcopy(model.state_dict())
     best_epoch = 0
     best_loss = 0.0
     step = 0
@@ -272,39 +250,33 @@ def main(config):
             # dashboard.save_dashboard(directory_path=prediction_dir)
             # Access the mean values
             logger.info(f'Epoch {epoch} Eval {LOSS_FUNC} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
-            # Save best model
-            # if epoch == 0:
+            #Save best model
+            if epoch == 0:
 
-            #     best_epoch = epoch
-            #     best_f1 = f1
-            #     best_loss = eval_losses.avg
-            #     best_weights = copy.deepcopy(model.state_dict())
+                best_epoch = epoch
+                best_f1 = f1
+                best_loss = eval_losses.avg
+                best_weights = copy.deepcopy(model.state_dict())
 
-            # elif f1 > best_f1:
+            elif f1 > best_f1:
 
-            #     best_epoch = epoch
-            #     best_f1 = f1
-            #     best_loss = eval_losses.avg
-            #     best_weights = copy.deepcopy(model.state_dict())
+                best_epoch = epoch
+                best_f1 = f1
+                best_loss = eval_losses.avg
+                best_weights = copy.deepcopy(model.state_dict())
             # save model 
-        weights = copy.deepcopy(model.state_dict())
+        
+
         model_name = f"{fold}_model.pth"
         model_path = os.path.join(prediction_dir, model_name)
-        # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
-        torch.save(weights, model_path)
+        torch.save(best_weights, model_path)
         logger.info(f'FOLD {fold} - AVG F1: {np.mean(fold_val_f1)}')
         folds_val_f1.append(np.mean(fold_val_f1))
-    
-    # logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
+        logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
+
     avg_f1_score = np.mean(folds_val_f1)
     logger.info(f'AVG F1 score: {avg_f1_score}')
-    # # save model 
-    # weights = copy.deepcopy(model.state_dict())
-    # # torch.save(best_weights, os.path.join(prediction_dir, 'best.pth'))
-    # torch.save(weights, os.path.join(prediction_dir, 'best.pth'))
-    # logger.info('Training Done')
-    # logger.info('best epoch: {}, {} loss: {:.2f}'.format( best_epoch, LOSS_FUNC, best_loss))
-    # save training config file
+    
     config_filename = os.path.join(prediction_dir,'trainin_config.json')
     with open(config_filename, 'w') as fp:
             json.dump(config, fp)
