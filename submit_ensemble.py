@@ -23,22 +23,15 @@ def main(args):
         args (argparse.Namespace): The command-line arguments.
 
     """
-    
-    
-    
+
     checkpoint_path = args.checkpoint_path
     list_dir = os.listdir(checkpoint_path)
     # current_dir = os.path.dirname(os.path.abspath(__file__))
-
     models_path = [file for file in list_dir if file.endswith('.pth')]
-    print(models_path)
     df_pred = pd.DataFrame()
     for i in range(len(models_path)):
-
-        
         model_path = os.path.join(checkpoint_path, models_path[i])
         logger.info(f"model_{i}: {models_path[i]}")
-    
         model = timm.create_model('caformer_s18.sail_in1k', pretrained=False, num_classes=1)
         logger.info("==> Loading checkpoint '{}'".format(model_path))
         checkpoint = torch.load(model_path)
@@ -71,7 +64,6 @@ def main(args):
             preds_submit.append(pred)
 
         df_pred[f"model_{i}"] = preds_submit
-
 
     df_pred['majority'] = df_pred.mode(axis=1)[0]
     # df_pred['target'] = targets_eval
