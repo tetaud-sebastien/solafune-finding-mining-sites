@@ -292,20 +292,13 @@ def main(config):
     logger.info('Training Duration: {}'.format(str(training_duration)))
     model_size = estimate_model_size(model)
     logger.info("model size: {}".format(model_size))
-    # df_val_metrics['Training_duration'] = training_duration
-    # df_val_metrics['nb_parameters'] = nb_parameters
-    # df_val_metrics['model_size'] = model_size
-    # df_val_metrics.to_csv(os.path.join(prediction_dir, 'valid_metrics_log.csv'))
     
-
     # Evaluation Ensemble Model
     logger.info("##############")
     logger.info("EVALUATION")
     logger.info("##############")
 
     list_dir = os.listdir(prediction_dir)
-
-
     models_path = [file for file in list_dir if file.endswith('.pth')]
     
     if AUTO_EVAL:
@@ -316,9 +309,7 @@ def main(config):
         for i in range(len(models_path)):
 
             model_path = os.path.join(prediction_dir, models_path[i])
-
             logger.info(f"model_{i}: {models_path[i]}")
-
             preds_eval, targets_eval = auto_eval(model_path=model_path,
                                                  model_architecture=MODEL_ARCHITECTURE,
                                                  normalize=IMAGE_NET_NORMALIZE,
@@ -334,7 +325,12 @@ def main(config):
         ensemble_pred = [arr.astype(int) for arr in ensemble_pred]
         plot_confusion_matrix(ensemble_pred, targets_eval, prediction_dir)
         f1_eval = f1_score(ensemble_pred, targets_eval)
-        logger.info(f"ENSEMBLE MODEL F1-SCORE: {f1_eval}")      
+        logger.info(f"ENSEMBLE MODEL F1-SCORE: {f1_eval}")
+        eval_metric = {'F1': f1_eval}
+        save_path = os.path.join(prediction_dir, 'eval_metrics.json')
+        
+        with open(save_path, 'w') as fp:
+            json.dump(eval_metric, fp)  
 
 if __name__ == '__main__':
 

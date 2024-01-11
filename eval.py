@@ -13,7 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def auto_eval(model_path, model_architecture,normalize, save_path):
+def auto_eval(model_path, model_architecture, normalize, save_path):
     """
     Main function to test the trained model on the given test data.
 
@@ -72,9 +72,9 @@ def auto_eval(model_path, model_architecture,normalize, save_path):
 
     return preds_eval, targets_eval
 
-# if __name__ == '__main__':
-
-#     parser = argparse.ArgumentParser(description='Evaluation data generation', fromfile_prefix_chars='@')
-#     parser.add_argument('-c', '--checkpoint_path',type=str,   help='path to a checkpoint to load', default='')
-#     args = parser.parse_args()
-#     main(args)
+if __name__ == '__main__':
+    
+    auto_eval(model_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20/4_model.pth",
+              model_architecture="caformer_s18.sail_in1k",
+              normalize=False, 
+              save_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20")

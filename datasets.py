@@ -109,6 +109,24 @@ def image_preprocessing(image_path):
     return rgb_composite_n
 
 
+def image_preprocessing_index(image_path):
+
+    image = xr.open_rasterio(image_path, masked=False).values
+    nwdi = (image[2,:,:]-image[7,:,:])/(image[2,:,:]+image[7,:,:])
+    nwdi = normalize(nwdi)
+
+    ndvi = (image[7,:,:]-image[3,:,:])/(image[7,:,:]+image[3,:,:])
+    ndvi = normalize(ndvi)
+
+    msi = image[10,:,:]/image[7,:,:]
+    msi = normalize(msi)
+
+    image_index = np.dstack((ndvi, nwdi, msi))
+    
+    
+    return image_index
+
+
 class TrainDataset(Dataset):
     """
     Custom training dataset class.

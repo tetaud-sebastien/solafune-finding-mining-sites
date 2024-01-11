@@ -56,6 +56,7 @@ def main(args):
         preds_submit.append(pred)
 
     dfs[1] = preds_submit
+    df = df.replace(-9223372036854775808, int(0))
     dfs.to_csv("submit.csv", header=False, index=False)
 
 if __name__ == '__main__':

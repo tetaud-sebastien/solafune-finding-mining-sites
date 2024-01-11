@@ -9,7 +9,7 @@ loss: "BCE"
 number_kfold: 5
 regularization: False
 lambda_l1: 0.1
-data_augmentation: True
+data_augmentation: False
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
