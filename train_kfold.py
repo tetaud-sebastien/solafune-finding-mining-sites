@@ -148,10 +148,10 @@ def main(config):
         fold_df_train = dataset_path.iloc[train_indices]
         fold_df_val = dataset_path.iloc[val_indices]
         
-        train_dataset = TrainDataset(df_path=fold_df_train, normalize=IMAGE_NET_NORMALIZE, processing=PREPROCESSING, data_augmentation=DATA_AUGMENTATION)
+        train_dataset = TrainDataset(df_path=fold_df_train, normalize=IMAGE_NET_NORMALIZE, preprocessing=PREPROCESSING, data_augmentation=DATA_AUGMENTATION)
         train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-        eval_dataset = EvalDataset(df_path=fold_df_val, processing=PREPROCESSING, normalize=IMAGE_NET_NORMALIZE)
+        eval_dataset = EvalDataset(df_path=fold_df_val, preprocessing=PREPROCESSING, normalize=IMAGE_NET_NORMALIZE)
         eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
         fold_val_f1 = []

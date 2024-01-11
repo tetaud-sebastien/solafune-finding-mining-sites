@@ -36,7 +36,7 @@ def main(args):
     
     dfs = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data/uploadsample.csv", header=None)
     submit_path = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data_splits/submit_path.csv")
-    test_dataset = TestDataset(df_path=submit_path, normalize=False)
+    test_dataset = TestDataset(df_path=submit_path, preprocessing = "RGB", normalize=False)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
     preds_submit = []
     for index, data in enumerate(test_dataloader):

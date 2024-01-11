@@ -1,6 +1,5 @@
 outpout_dir: models/
 prediction_dir: training_prediction/
-# model_architecture: caformer_s18.sail_in1k
 model_architecture : caformer_s18.sail_in1k
 pretrained: True
 preprocessing: "RGB"

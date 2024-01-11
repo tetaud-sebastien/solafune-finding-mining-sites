@@ -13,7 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def auto_eval(model_path, model_architecture, processing, normalize, save_path):
+def auto_eval(model_path, model_architecture, preprocessing, normalize, save_path):
     """
     Main function to test the trained model on the given test data.
 
@@ -34,7 +34,7 @@ def auto_eval(model_path, model_architecture, processing, normalize, save_path):
     logger.info(f"Model is on Cuda: {next(model.parameters()).is_cuda}")
     
     test_path = pd.read_csv('data_splits/test_path.csv')
-    test_dataset = EvalDataset(df_path=test_path,processing=processing, normalize=normalize)
+    test_dataset = EvalDataset(df_path=test_path, preprocessing=preprocessing, normalize=normalize)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
     targets_eval = []
     preds_eval = []

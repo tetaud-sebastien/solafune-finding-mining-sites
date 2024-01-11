@@ -121,8 +121,6 @@ def image_preprocessing_index(image_path):
 
     image_index = np.dstack((ndvi, nwdi, msi))
     
-    
-    
     return image_index
 
 
@@ -148,7 +146,7 @@ class TrainDataset(Dataset):
     Custom training dataset class.
     """
     # def __init__(self, df_path, normalize, data_augmentation):
-    def __init__(self, df_path, normalize, processing, data_augmentation):
+    def __init__(self, df_path, normalize, preprocessing, data_augmentation):
         """
         Initialize the training dataset.
 
@@ -159,19 +157,19 @@ class TrainDataset(Dataset):
         self.df_path = df_path
         self.normalize = normalize
         self.data_augmentation = data_augmentation
-        self.processing = processing
+        self.preprocessing = preprocessing
     
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
-        # image = image_preprocessing(img_path)
+        # image = image_prepreprocessing(img_path)
 
-        if self.processing == "RGB":
+        if self.preprocessing == "RGB":
             image = image_preprocessing(image_path=img_path)
-        elif self.processing == "INDEX":
+        elif self.preprocessing == "INDEX":
             image = image_preprocessing_index(image_path=img_path)
-        elif self.processing == "PCA":
+        elif self.preprocessing == "PCA":
             image = image_preprocessing_pca(image_path=img_path)
 
         if self.data_augmentation: 
@@ -197,23 +195,23 @@ class TrainDataset(Dataset):
 class EvalDataset(Dataset):
 
     # def __init__(self, df_path, normalize):
-    def __init__(self, df_path, processing, normalize):
+    def __init__(self, df_path, preprocessing, normalize):
         
         self.df_path = df_path
         self.normalize = normalize
-        self.processing = processing
+        self.preprocessing = preprocessing
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
-        # image = image_preprocessing(img_path)
+        # image = image_prepreprocessing(img_path)
 
 
-        if self.processing == "RGB":
+        if self.preprocessing == "RGB":
             image = image_preprocessing(image_path=img_path)
-        elif self.processing == "INDEX":
+        elif self.preprocessing == "INDEX":
             image = image_preprocessing_index(image_path=img_path)
-        elif self.processing == "PCA":
+        elif self.preprocessing == "PCA":
             image = image_preprocessing_pca(image_path=img_path)
 
         if self.normalize:
@@ -238,24 +236,24 @@ class EvalDataset(Dataset):
 
 class TestDataset(Dataset):
 
-    def __init__(self, df_path, processing, normalize):
+    def __init__(self, df_path, preprocessing, normalize):
     # def __init__(self, df_path, normalize):
         
         self.df_path = df_path
         self.normalize = normalize
-        self.processing = processing
+        self.preprocessing = preprocessing
 
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
-        # image = image_preprocessing(img_path)
+        # image = image_prepreprocessing(img_path)
 
-        if self.processing == "RGB":
+        if self.preprocessing == "RGB":
             image = image_preprocessing(image_path=img_path)
-        elif self.processing == "INDEX":
+        elif self.preprocessing == "INDEX":
             image = image_preprocessing_index(image_path=img_path)
-        elif self.processing == "PCA":
+        elif self.preprocessing == "PCA":
             image = image_preprocessing_pca(image_path=img_path)
 
         if self.normalize:
