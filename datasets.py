@@ -110,14 +110,15 @@ def image_preprocessing(image_path):
 def image_preprocessing_index(image_path):
 
     image = xr.open_rasterio(image_path, masked=False).values
+    
     nwdi = (image[2,:,:]-image[7,:,:])/(image[2,:,:]+image[7,:,:])
-    nwdi = normalize(nwdi)
+    # nwdi = normalize(nwdi)
 
     ndvi = (image[7,:,:]-image[3,:,:])/(image[7,:,:]+image[3,:,:])
-    ndvi = normalize(ndvi)
+    # ndvi = normalize(ndvi)
 
     msi = image[10,:,:]/image[7,:,:]
-    msi = normalize(msi)
+    # msi = normalize(msi)
 
     image_index = np.dstack((ndvi, nwdi, msi))
     
@@ -136,7 +137,7 @@ def image_preprocessing_pca(image_path):
     pca_result = pca.fit_transform(reshaped_data)
     
     pca_result_reshaped = pca_result.T.reshape((n_components, 512, 512))
-    pca_result_reshaped = normalize(pca_result_reshaped)
+    # pca_result_reshaped = normalize(pca_result_reshaped)
     pca_result_reshaped = np.transpose(pca_result_reshaped, (1, 2, 0))
     return pca_result_reshaped
 
