@@ -52,6 +52,7 @@ def main(config):
     MODEL_ARCHITECTURE = config['model_architecture']
     PRETRAINED = config['pretrained']
     IMAGE_NET_NORMALIZE = config['image_net_normalize']
+    PREPROCESSING = config['preprocessing']
     LAMBDA_L1 = config['lambda_l1']
     NUMBER_KFOLD = config['number_kfold']
     DATA_AUGMENTATION = config['data_augmentation']

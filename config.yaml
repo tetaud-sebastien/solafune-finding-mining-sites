@@ -3,6 +3,7 @@ prediction_dir: training_prediction/
 # model_architecture: caformer_s18.sail_in1k
 model_architecture : caformer_s18.sail_in1k
 pretrained: True
+preprocessing: "INDEX"
 image_net_normalize : False
 channel : 3
 loss: "BCE"

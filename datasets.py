@@ -104,8 +104,7 @@ def image_preprocessing(image_path):
     green_n = normalize(green)
     blue_n = normalize(blue)
     rgb_composite_n= np.dstack((red_n, green_n, blue_n))
-    
-    
+
     return rgb_composite_n
 
 
@@ -126,13 +125,28 @@ def image_preprocessing_index(image_path):
     
     return image_index
 
+def image_preprocessing_pca(image_path):
+
+
+    from sklearn.decomposition import PCA
+
+    image = xr.open_rasterio(image_path, masked=False).values
+    reshaped_data = image.reshape((12, -1)).T  # Transpose for the correct shape
+    n_components = 3  # Number of principal components
+    pca = PCA(n_components=n_components)
+    pca_result = pca.fit_transform(reshaped_data)
+    pca_result_reshaped = normalize(pca_result_reshaped)
+    pca_result_reshaped = pca_result.T.reshape((n_components, 512, 512))
+    
+    return pca_result_reshaped
+
 
 class TrainDataset(Dataset):
     """
     Custom training dataset class.
     """
-
     def __init__(self, df_path, normalize, data_augmentation):
+    # def __init__(self, df_path, normalize, processing, data_augmentation):
         """
         Initialize the training dataset.
 
@@ -143,12 +157,20 @@ class TrainDataset(Dataset):
         self.df_path = df_path
         self.normalize = normalize
         self.data_augmentation = data_augmentation
+        # self.processing = processing
     
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
         image = image_preprocessing(img_path)
+
+        # if self.processing == "RGB":
+        #     image = image_preprocessing(image_path=img_path)
+        # elif self.processing == "INDEX":
+        #     image = image_preprocessing_index(image_path=img_path)
+        # elif self.processing == "PCA":
+        #     image = image_preprocessing_pca(image_path=img_path)
 
         if self.data_augmentation: 
             image = data_augmentation(image)
@@ -172,16 +194,25 @@ class TrainDataset(Dataset):
 
 class EvalDataset(Dataset):
 
-
     def __init__(self, df_path, normalize):
+    # def __init__(self, df_path, processing, normalize):
         
         self.df_path = df_path
         self.normalize = normalize
+        # self.processing = processing
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
         image = image_preprocessing(img_path)
+
+
+        # if self.processing == "RGB":
+        #     image = image_preprocessing(image_path=img_path)
+        # elif self.processing == "INDEX":
+        #     image = image_preprocessing_index(image_path=img_path)
+        # elif self.processing == "PCA":
+        #     image = image_preprocessing_pca(image_path=img_path)
 
         if self.normalize:
 
@@ -193,12 +224,7 @@ class EvalDataset(Dataset):
             transform = transforms.Compose([transforms.ToTensor()])
 
         image = transform(image)
-        # image = self.transform(image)
-
-
-        # image = np.transpose(image, (2,1,0))
-        # image = torch.Tensor(image)        
-
+        
         target = self.df_path.target.iloc[index] 
 
         return image, target
@@ -210,17 +236,25 @@ class EvalDataset(Dataset):
 
 class TestDataset(Dataset):
 
-
+    # def __init__(self, df_path, processing, normalize):
     def __init__(self, df_path, normalize):
         
         self.df_path = df_path
         self.normalize = normalize
+        # self.processing = processing
 
 
     def __getitem__(self, index):
 
         img_path = self.df_path.image_path.iloc[index]
         image = image_preprocessing(img_path)
+
+        # if self.processing == "RGB":
+        #     image = image_preprocessing(image_path=img_path)
+        # elif self.processing == "INDEX":
+        #     image = image_preprocessing_index(image_path=img_path)
+        # elif self.processing == "PCA":
+        #     image = image_preprocessing_pca(image_path=img_path)
 
         if self.normalize:
 
