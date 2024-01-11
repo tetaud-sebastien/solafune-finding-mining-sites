@@ -80,6 +80,9 @@ def main(args):
 
     dfs[1] = df_pred['majority']
     dfs[1] = preds_submit
+    # some data are not valid
+    df = df.replace(-9223372036854775808, int(0))
+
     dfs.to_csv("submit.csv", header=False, index=False)
 
 if __name__ == '__main__':

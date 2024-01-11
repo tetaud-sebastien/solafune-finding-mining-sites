@@ -46,7 +46,7 @@ def main(config):
         config (dict): Dictionary of configurations.
     """
 
-    # load conf file for training
+    #load conf file for training
     PREDICTION_DIR = config['prediction_dir']
     REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
@@ -303,6 +303,11 @@ def main(config):
     logger.info("EVALUATION")
     logger.info("##############")
 
+    list_dir = os.listdir(prediction_dir)
+
+
+    models_path = [file for file in list_dir if file.endswith('.pth')]
+    
     if AUTO_EVAL:
 
         from eval import auto_eval
@@ -310,21 +315,25 @@ def main(config):
         df_val = pd.DataFrame()
         for i in range(len(models_path)):
 
+            model_path = os.path.join(prediction_dir, models_path[i])
+
             logger.info(f"model_{i}: {models_path[i]}")
-            preds_eval, targets_eval = auto_eval(model_path=models_path[i],
+
+            preds_eval, targets_eval = auto_eval(model_path=model_path,
                                                  model_architecture=MODEL_ARCHITECTURE,
                                                  normalize=IMAGE_NET_NORMALIZE,
                                                  save_path=prediction_dir)
-            
             model_name = f"model_{i}"
             df_val[model_name] = preds_eval
+
         df_val['majority'] = df_val.mode(axis=1)[0]
         df_val['target'] = targets_eval
         df_val.to_csv(os.path.join(prediction_dir,'ensemble_model.csv'))
         # Confusion matrix of the ensemble model
         ensemble_pred = df_val['majority'].values
+        ensemble_pred = [arr.astype(int) for arr in ensemble_pred]
         plot_confusion_matrix(ensemble_pred, targets_eval, prediction_dir)
-        f1_eval = f1_score(preds, targets)
+        f1_eval = f1_score(ensemble_pred, targets_eval)
         logger.info(f"ENSEMBLE MODEL F1-SCORE: {f1_eval}")      
 
 if __name__ == '__main__':
