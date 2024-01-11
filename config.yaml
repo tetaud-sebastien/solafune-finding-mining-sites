@@ -3,7 +3,7 @@ prediction_dir: training_prediction/
 # model_architecture: caformer_s18.sail_in1k
 model_architecture : caformer_s18.sail_in1k
 pretrained: True
-preprocessing: "INDEX"
+preprocessing: "RGB"
 image_net_normalize : False
 channel : 3
 loss: "BCE"
@@ -14,7 +14,7 @@ data_augmentation: False
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 40
+epochs: 1
 workers: 8 
 seed: 123
 log_dir : log/

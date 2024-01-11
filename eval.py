@@ -13,7 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def auto_eval(model_path, model_architecture, normalize, save_path):
+def auto_eval(model_path, model_architecture, processing, normalize, save_path):
     """
     Main function to test the trained model on the given test data.
 
@@ -23,7 +23,7 @@ def auto_eval(model_path, model_architecture, normalize, save_path):
 
     """
     
-    model = timm.create_model(model_architecture, pretrained=True, num_classes=1)
+    model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
@@ -34,7 +34,7 @@ def auto_eval(model_path, model_architecture, normalize, save_path):
     logger.info(f"Model is on Cuda: {next(model.parameters()).is_cuda}")
     
     test_path = pd.read_csv('data_splits/test_path.csv')
-    test_dataset = EvalDataset(df_path=test_path, normalize=normalize)
+    test_dataset = EvalDataset(df_path=test_path,processing=processing, normalize=normalize)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
     targets_eval = []
     preds_eval = []
@@ -76,5 +76,6 @@ if __name__ == '__main__':
     
     auto_eval(model_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20/4_model.pth",
               model_architecture="caformer_s18.sail_in1k",
+              processing="RGB",
               normalize=False, 
               save_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20")

@@ -39,7 +39,7 @@ def main(args):
         model_path = os.path.join(checkpoint_path, models_path[i])
         logger.info(f"model_{i}: {models_path[i]}")
     
-        model = timm.create_model('caformer_s18.sail_in1k', num_classes=1)
+        model = timm.create_model('caformer_s18.sail_in1k', pretrained=False, num_classes=1)
         logger.info("==> Loading checkpoint '{}'".format(model_path))
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
@@ -51,7 +51,7 @@ def main(args):
         
         dfs = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data/uploadsample.csv", header=None)
         submit_path = pd.read_csv("/home/sebastien/Documents/projects/solafune-finding-mining-sites/data_splits/submit_path.csv")
-        test_dataset = TestDataset(df_path=submit_path,normalize=True)
+        test_dataset = TestDataset(df_path=submit_path, processing= "RGB", normalize=False)
         test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
         preds_submit = []
         for index, data in enumerate(test_dataloader):
