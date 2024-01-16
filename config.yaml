@@ -1,9 +1,12 @@
 outpout_dir: models/
 prediction_dir: training_prediction/
-model_architecture : caformer_s18.sail_in1k
-pretrained: False
-preprocessing: "PCA"
-image_net_normalize : True
+# model_architecture : caformer_s18.sail_in1k
+# model_architecture: davit_base.msft_in1k
+model_architecture: coat_tiny.in1k
+pretrained: True
+preprocessing: "RGB"
+image_net_normalize : False
+resize: [224, 224]
 channel : 3
 loss: "BCE"
 number_kfold: 5
@@ -13,7 +16,7 @@ data_augmentation: False
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 5
+epochs: 20
 workers: 8 
 seed: 123
 log_dir : log/

@@ -122,6 +122,9 @@ def image_preprocessing_index(image_path):
 
     image_index = np.dstack((ndvi, nwdi, msi))
     
+    image_index = normalize(image_index)
+    print(image_index.shape)
+    # image_index= np.transpose(image_index, (1, 2, 0))
     return image_index
 
 
@@ -147,7 +150,7 @@ class TrainDataset(Dataset):
     Custom training dataset class.
     """
     # def __init__(self, df_path, normalize, data_augmentation):
-    def __init__(self, df_path, normalize, preprocessing, data_augmentation):
+    def __init__(self, df_path, normalize, preprocessing, resize, data_augmentation):
         """
         Initialize the training dataset.
 
@@ -159,6 +162,8 @@ class TrainDataset(Dataset):
         self.normalize = normalize
         self.data_augmentation = data_augmentation
         self.preprocessing = preprocessing
+        self.resize = resize
+
     
 
     def __getitem__(self, index):
@@ -181,9 +186,11 @@ class TrainDataset(Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         else:
-            transform = transforms.Compose([transforms.ToTensor()])
+            transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
 
         image = transform(image)
+        
+       
         
         target = self.df_path.target.iloc[index]
         
@@ -195,12 +202,13 @@ class TrainDataset(Dataset):
 
 class EvalDataset(Dataset):
 
-    # def __init__(self, df_path, normalize):
-    def __init__(self, df_path, preprocessing, normalize):
+    # def __init__(self, df_path, , normalize):
+    def __init__(self, df_path, preprocessing, resize,normalize):
         
         self.df_path = df_path
         self.normalize = normalize
         self.preprocessing = preprocessing
+        self.resize = resize
 
     def __getitem__(self, index):
 
@@ -222,7 +230,7 @@ class EvalDataset(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
             
         else:
-            transform = transforms.Compose([transforms.ToTensor()])
+            transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
 
         image = transform(image)
         
@@ -237,12 +245,13 @@ class EvalDataset(Dataset):
 
 class TestDataset(Dataset):
 
-    def __init__(self, df_path, preprocessing, normalize):
+    def __init__(self, df_path, preprocessing, resize, normalize):
     # def __init__(self, df_path, normalize):
         
         self.df_path = df_path
         self.normalize = normalize
         self.preprocessing = preprocessing
+        self.resize = resize
 
 
     def __getitem__(self, index):
@@ -264,14 +273,10 @@ class TestDataset(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
             
         else:
-            transform = transforms.Compose([transforms.ToTensor()])
+            transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
             
 
-        image = transform(image)
-
-        # image = np.transpose(image, (2,1,0))
-        # image = torch.Tensor(image)
-    
+        image = transform(image)    
     
         return image
 

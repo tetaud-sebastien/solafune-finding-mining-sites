@@ -13,7 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def auto_eval(model_path, model_architecture, preprocessing, normalize, save_path):
+def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, save_path):
     """
     Main function to test the trained model on the given test data.
 
@@ -34,7 +34,7 @@ def auto_eval(model_path, model_architecture, preprocessing, normalize, save_pat
     logger.info(f"Model is on Cuda: {next(model.parameters()).is_cuda}")
     
     test_path = pd.read_csv('data_splits/test_path.csv')
-    test_dataset = EvalDataset(df_path=test_path, preprocessing=preprocessing, normalize=normalize)
+    test_dataset = EvalDataset(df_path=test_path, preprocessing=preprocessing,resize=resize, normalize=normalize)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
     targets_eval = []
     preds_eval = []
@@ -72,10 +72,11 @@ def auto_eval(model_path, model_architecture, preprocessing, normalize, save_pat
 
     return preds_eval, targets_eval
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    auto_eval(model_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20/4_model.pth",
-              model_architecture="caformer_s18.sail_in1k",
-              processing="RGB",
-              normalize=False, 
-              save_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20")
+#     auto_eval(model_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20/4_model.pth",
+#               model_architecture="caformer_s18.sail_in1k",
+#               processing="RGB",
+#               resize=RESIZE,
+#               normalize=False, 
+#               save_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_01_11_10_55_20")
