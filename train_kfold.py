@@ -183,7 +183,14 @@ def main(config):
 
                     else:
 
+                        alpha = 0.25 
+                        gamma = 2 
+
                         loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
+                        pt = torch.exp(-loss_train) # prevents nans when probability 0
+                        F_loss = alpha * (1-pt)**gamma * loss_train
+
+                        loss_train = F_loss
 
                     loss_train.backward()
                     optimizer.step()
@@ -212,7 +219,15 @@ def main(config):
                     pred = model(images_inputs)
                     pred = torch.sigmoid(pred)
 
+                    
+                    alpha = 0.25 
+                    gamma = 2 
+
                     eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
+                    pt = torch.exp(-eval_loss) # prevents nans when probability 0
+                    F_loss = alpha * (1-pt)**gamma * eval_loss
+
+                    eval_loss = F_loss
 
                 # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
                 #         seg_targets=seg_targets, seg_preds=seg_preds,
