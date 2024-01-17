@@ -20,11 +20,11 @@ def main(args):
         args (argparse.Namespace): The command-line arguments.
 
     """
-    resize = [224,224]
+    resize = [512,512]
     model_path = args.checkpoint_path    
     import timm 
     # model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', num_classes=1)
-    model = timm.create_model('coat_tiny.in1k', pretrained=False, num_classes=1)
+    model = timm.create_model('davit_base.msft_in1k', pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)

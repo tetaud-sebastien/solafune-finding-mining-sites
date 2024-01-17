@@ -2,17 +2,17 @@ outpout_dir: models/
 prediction_dir: training_prediction/
 # model_architecture : caformer_s18.sail_in1k
 # model_architecture: davit_base.msft_in1k
-model_architecture: coat_tiny.in1k
+model_architecture: davit_base.msft_in1k
 pretrained: True
-preprocessing: "RGB"
+preprocessing: "PCA"
 image_net_normalize : False
-resize: [224, 224]
+resize: [512, 512]
 channel : 3
 loss: "BCE"
 number_kfold: 5
 regularization: False
 lambda_l1: 0.1
-data_augmentation: False
+data_augmentation: True
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
