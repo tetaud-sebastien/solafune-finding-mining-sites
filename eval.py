@@ -25,8 +25,8 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
     import torchvision.models as models
     import torch.nn as nn
 
-    model = models.swin_t(weights=None)
-    # model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
+    # model = models.mobilenet_v2(weights=None)
+    model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     # Modify the classifier for your specific classification task
     if 'classifier' in dir(model):

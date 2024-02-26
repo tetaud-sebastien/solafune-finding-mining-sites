@@ -1,6 +1,6 @@
 outpout_dir: models/
 prediction_dir: training_prediction/
-model_architecture: swin_t
+model_architecture: davit_base.msft_in1k
 pretrained: True
 preprocessing: "RGB"
 image_net_normalize : False

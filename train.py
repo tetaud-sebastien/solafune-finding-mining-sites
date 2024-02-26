@@ -107,7 +107,17 @@ def main(config):
     # best score with 0.71
     #model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', pretrained=True,num_classes=1)
     #  0.732142857143
-    model = timm.create_model(MODEL_ARCHITECTURE, pretrained=True, num_classes=1)
+
+    import torchvision.models as models
+
+    model = models.mobilenet_v2(weights="IMAGENET1K_V1")
+    # Modify the classifier for your specific classification task
+    if 'classifier' in dir(model):
+        model.classifier[1] = nn.Linear(model.last_channel, 2)
+    elif 'fc' in dir(model):
+        model.fc = nn.Linear(model.fc.in_features, 2)
+
+    # model = timm.create_model(MODEL_ARCHITECTURE, pretrained=True, num_classes=1)
 
     logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
     logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
@@ -137,11 +147,11 @@ def main(config):
     logger.info("Number of Validation data {0:d}".format(len(valid_path)))
     logger.info("------")
 
-    train_dataset = TrainDataset(df_path=train_path, normalize=IMAGE_NET_NORMALIZE, data_augmentation=DATA_AUGMENTATION)
+    train_dataset = TrainDataset(df_path=train_path, normalize=IMAGE_NET_NORMALIZE, preprocessing="RGB",   data_augmentation=DATA_AUGMENTATION)
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     eval_dataset = EvalDataset(df_path=valid_path)
-    eval_dataloader = DataLoader(dataset=eval_dataset, normalize=IMAGE_NET_NORMALIZE,batch_size=1, shuffle=False)
+    eval_dataloader = DataLoader(dataset=eval_dataset, normalize=IMAGE_NET_NORMALIZE,preprocessing="RGB", batch_size=1, shuffle=False)
 
     best_weights = copy.deepcopy(model.state_dict())
     best_epoch = 0
@@ -171,7 +181,6 @@ def main(config):
 
                 if REGULARIZATION == "L1":
 
-                    l1_loss = criterion_L1(preds.to(torch.float32), targets.to(torch.float32))
                     l1_loss = criterion_L1(preds.to(torch.float32), targets.to(torch.float32))
                     loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32)) + (LAMBDA_L1 * l1_loss)
 

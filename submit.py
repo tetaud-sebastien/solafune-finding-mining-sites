@@ -5,8 +5,9 @@ import pandas as pd
 from loguru import logger
 from datasets import TestDataset
 from torch.utils.data.dataloader import DataLoader
+import torchvision.models as models
+from torch import nn
 
-from models import Unet
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -22,9 +23,9 @@ def main(args):
     """
     resize = [512,512]
     model_path = args.checkpoint_path    
+    logger.info("==> Loading checkpoint '{}'".format(model_path))
     import timm 
-    # model = timm.create_model('tf_efficientnetv2_s.in21k_ft_in1k', num_classes=1)
-    model = timm.create_model('davit_base.msft_in1k', pretrained=False, num_classes=1)
+    model = timm.create_model(args.model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
