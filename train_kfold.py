@@ -4,6 +4,7 @@ import json
 import os
 import random
 import warnings
+from torch.nn import functional as F
 
 import numpy as np
 import pandas as pd
@@ -134,7 +135,20 @@ def main(config):
 
         logger.info(f"Fold {fold}:")
         
-        model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
+        # model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
+
+
+        import torchvision.models as models
+
+        model = models.swin_t(weights="IMAGENET1K_V1")
+        # Modify the classifier for your specific classification task
+        if 'classifier' in dir(model):
+            model.classifier[1] = nn.Linear(model.last_channel, 1)
+        elif 'fc' in dir(model):
+            model.fc = nn.Linear(model.fc.in_features, 1)
+        else:
+            model.head = nn.Linear(model.head.in_features, 1)
+
         optimizer = optim.Adam(model.parameters(), lr=LR)
 
         logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))

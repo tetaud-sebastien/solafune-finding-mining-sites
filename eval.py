@@ -22,9 +22,19 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
         args (argparse.Namespace): The command-line arguments.
 
     """
-    
-    model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
+    import torchvision.models as models
+    import torch.nn as nn
+
+    model = models.swin_t(weights=None)
+    # model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
+    # Modify the classifier for your specific classification task
+    if 'classifier' in dir(model):
+        model.classifier[1] = nn.Linear(model.last_channel, 1)
+    elif 'fc' in dir(model):
+        model.fc = nn.Linear(model.fc.in_features, 1)
+    else:
+        model.head = nn.Linear(model.head.in_features, 1)
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
     model.eval()
@@ -34,7 +44,7 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
     logger.info(f"Model is on Cuda: {next(model.parameters()).is_cuda}")
     
     test_path = pd.read_csv('data_splits/test_path.csv')
-    test_dataset = EvalDataset(df_path=test_path, preprocessing=preprocessing,resize=resize, normalize=normalize)
+    test_dataset = EvalDataset(df_path=test_path, preprocessing=preprocessing, resize=resize, normalize=normalize)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
     targets_eval = []
     preds_eval = []
