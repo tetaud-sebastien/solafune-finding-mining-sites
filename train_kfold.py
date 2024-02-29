@@ -137,7 +137,6 @@ def main(config):
         
         model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
 
-
         # import torchvision.models as models
 
         # model = models.mobilenet_v2(weights=None)

@@ -35,7 +35,7 @@ def main(args):
     for i in range(len(models_path)):
         model_path = os.path.join(checkpoint_path, models_path[i])
         logger.info(f"model_{i}: {models_path[i]}")
-        # model = timm.create_model('davit_base.msft_in1k', pretrained=False, num_classes=1)
+        model = timm.create_model('davit_base.msft_in1k', pretrained=False, num_classes=1)
         # model = models.mobilenet_v2(weights=None)
         model = timm.create_model(args.model_architecture, pretrained=False, num_classes=1)
         logger.info("==> Loading checkpoint '{}'".format(model_path))
