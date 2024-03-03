@@ -25,9 +25,20 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
     import torch.nn as nn
 
     from torchvision.models import resnet50
-    model = resnet50(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, 1)
-    
+    # model = resnet50(weights=None)
+    # model.fc = nn.Linear(model.fc.in_features, 1)
+
+    from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+
+    # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
+    model = efficientnet_v2_m(weights=None)
+    # model.fc = nn.Linear(model.fc.in_features, 1)
+
+    # Modify the classifier for your specific classification task
+    if 'classifier' in dir(model):
+        model.classifier[1] = nn.Linear(1280, 1)
+    elif 'fc' in dir(model):
+        model.fc = nn.Linear(model.fc.in_features, 1)
     # model = models.mobilenet_v2(weights=None)
     # model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))

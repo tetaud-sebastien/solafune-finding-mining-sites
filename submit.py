@@ -24,8 +24,20 @@ def main(args):
     resize = [512,512]
     model_path = args.checkpoint_path    
     logger.info("==> Loading checkpoint '{}'".format(model_path))
-    import timm 
-    model = timm.create_model(args.model_architecture, pretrained=False, num_classes=1)
+    # import timm 
+    # model = timm.create_model(args.model_architecture, pretrained=False, num_classes=1)
+    from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+
+    # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
+    model = efficientnet_v2_m(weights=None)
+    # model.fc = nn.Linear(model.fc.in_features, 1)
+
+    # Modify the classifier for your specific classification task
+    if 'classifier' in dir(model):
+        model.classifier[1] = nn.Linear(1280, 1)
+    elif 'fc' in dir(model):
+        model.fc = nn.Linear(model.fc.in_features, 1)
+        
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)

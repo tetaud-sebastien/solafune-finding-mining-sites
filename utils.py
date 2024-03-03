@@ -56,7 +56,7 @@ def plot_loss_metrics(metrics, save_path):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(os.path.join(save_path, 'loss_plot.png'))  # Save the plot as an image
+    plt.savefig(os.path.join(save_path))  # Save the plot as an image
     plt.show()
 
 class AverageMeter(object):

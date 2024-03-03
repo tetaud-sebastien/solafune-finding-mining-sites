@@ -35,17 +35,17 @@ def main(args):
     for i in range(len(models_path)):
         model_path = os.path.join(checkpoint_path, models_path[i])
         logger.info(f"model_{i}: {models_path[i]}")
-        model = timm.create_model('davit_base.msft_in1k', pretrained=False, num_classes=1)
-        # model = models.mobilenet_v2(weights=None)
-        model = timm.create_model(args.model_architecture, pretrained=False, num_classes=1)
-        logger.info("==> Loading checkpoint '{}'".format(model_path))
+        from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+
+        # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
+        model = efficientnet_v2_m(weights=None)
+        # model.fc = nn.Linear(model.fc.in_features, 1)
+
         # Modify the classifier for your specific classification task
         if 'classifier' in dir(model):
-            model.classifier[1] = nn.Linear(model.last_channel, 1)
+            model.classifier[1] = nn.Linear(1280, 1)
         elif 'fc' in dir(model):
             model.fc = nn.Linear(model.fc.in_features, 1)
-        else:
-            model.head = nn.Linear(model.head.in_features, 1)
         logger.info("==> Loading checkpoint '{}'".format(model_path))
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)

@@ -103,10 +103,17 @@ def main(config):
         logger.info(f"Fold {fold}:")
         
         from torchvision.models import resnet50, ResNet50_Weights
+        from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+        weights = EfficientNet_V2_M_Weights.IMAGENET1K_V1
+        model = efficientnet_v2_m(weights=weights)
+        # model.fc = nn.Linear(model.fc.in_features, 1)
 
-        weights = ResNet50_Weights.DEFAULT
-        model = resnet50(weights=weights)
-        model.fc = nn.Linear(model.fc.in_features, 1)
+        # Modify the classifier for your specific classification task
+        if 'classifier' in dir(model):
+            model.classifier[1] = nn.Linear(1280, 1)
+        elif 'fc' in dir(model):
+            model.fc = nn.Linear(model.fc.in_features, 1)
+
         
         optimizer = optim.SGD(model.parameters(), lr=LR)
         logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
@@ -129,6 +136,11 @@ def main(config):
         eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
         fold_val_f1 = []
+        # save model 
+        model_name = f"{fold}_model.pth"
+        model_path = os.path.join(prediction_dir, model_name)
+
+        models_path.append(model_path)
 
         for epoch in range(NUM_EPOCHS):
 
@@ -141,7 +153,6 @@ def main(config):
                 for data in train_dataloader:
 
                     optimizer.zero_grad()
-
                     images_inputs, targets = data
                     images_inputs = images_inputs.to(device)
                     targets = targets.to(device)
@@ -157,10 +168,8 @@ def main(config):
                     loss_train.backward()
                     optimizer.step()
                     train_losses.update(loss_train.item(), len(images_inputs))
-                    # train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
                     t.set_postfix(loss='{:.6f}'.format(train_losses.avg))
                     t.update(len(images_inputs))
-
                     step += 1
 
             model.eval()
@@ -180,10 +189,8 @@ def main(config):
                     pred = model(images_inputs)
                     pred = torch.sigmoid(pred)
 
-                    
                     # alpha = 0.25 
                     # gamma = 2 
-
                     eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
                     # pt = torch.exp(-eval_loss) # prevents nans when probability 0
                     # F_loss = alpha * (1-pt)**gamma * eval_loss
@@ -206,32 +213,25 @@ def main(config):
                                     'loss_eval': eval_losses.avg}
 
             fold_val_f1.append(f1)
-            plot_loss_metrics(metrics=metrics_dict, save_path=prediction_dir)
+            loss_plot_filename  = os.path.join(prediction_dir,f"loss_fold_{fold}.png")
+            plot_loss_metrics(metrics=metrics_dict, save_path=loss_plot_filename)
 
             logger.info(f'Epoch {epoch} Eval {LOSS_FUNC} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
-            #Save best model
-            if epoch == 0:
 
+            if epoch == 0:
                 best_epoch = epoch
                 best_f1 = f1
                 best_loss = eval_losses.avg
                 best_weights = copy.deepcopy(model.state_dict())
 
             elif f1 > best_f1:
-
                 best_epoch = epoch
                 best_f1 = f1
                 best_loss = eval_losses.avg
                 best_weights = copy.deepcopy(model.state_dict())
-            # save model 
-        
 
-        model_name = f"{fold}_model.pth"
-        model_path = os.path.join(prediction_dir, model_name)
+            torch.save(best_weights, model_path)
 
-        models_path.append(model_path)
-
-        torch.save(best_weights, model_path)
         logger.info(f'FOLD {fold} - AVG F1: {np.mean(fold_val_f1)}')
         folds_val_f1.append(np.mean(fold_val_f1))
         logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')

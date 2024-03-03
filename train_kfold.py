@@ -12,14 +12,12 @@ import timm
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-import torchvision.transforms as T
 import yaml
 from loguru import logger
 from sklearn.metrics import accuracy_score, f1_score
 from torch import nn
 from torch.utils.data import ConcatDataset
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from datasets import EvalDataset, TrainDataset
@@ -29,6 +27,7 @@ warnings.simplefilter('ignore')
 
 
 def seed_everything(seed=42):
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -36,8 +35,6 @@ def seed_everything(seed=42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
 
 
 def main(config):
@@ -63,8 +60,6 @@ def main(config):
     LR = float(config['lr'])
     BATCH_SIZE = config['batch_size']
     NUM_EPOCHS = config['epochs']
-    LOG_DIR = config['log_dir']
-    TBP = config['tbp']
     GPU_DEVICE = config['gpu_device']
     LOSS_FUNC = config['loss']
     AUTO_EVAL = config['auto_eval']
@@ -75,12 +70,6 @@ def main(config):
     logger.info("start training session '{}'".format(start_training_date))
     date = start_training_date.strftime('%Y_%m_%d_%H_%M_%S')
 
-    TENSORBOARD_DIR = 'tensorboard'
-    tensorboard_path = os.path.join(LOG_DIR, TENSORBOARD_DIR)
-    logger.info("Tensorboard path: {}".format(tensorboard_path))
-    if not os.path.exists(tensorboard_path):
-        os.makedirs(tensorboard_path, exist_ok=True)
-
     if not os.path.exists(PREDICTION_DIR):
         os.makedirs(PREDICTION_DIR)
 
@@ -89,31 +78,11 @@ def main(config):
     log_filename = os.path.join(prediction_dir, "train.log")
     logger.add(log_filename, backtrace=False, diagnose=True)
 
-    cudnn.benchmark = True
-    if TBP is not None:
-
-        logger.info("starting tensorboard")
-        logger.info("------")
-
-        command = f'tensorboard --logdir {tensorboard_path} --port {TBP} --host localhost --load_fast=true'
-
-        train_tensorboard_writer = SummaryWriter(
-            os.path.join(tensorboard_path, 'train'), flush_secs=30)
-        val_tensorboard_writer = SummaryWriter(
-            os.path.join(tensorboard_path, 'val'), flush_secs=30)
-        writer = SummaryWriter()
-    else:
-        logger.exception("An error occurred: {}", "no tensorboard")
-        tensorboard_process = None
-        train_tensorboard_writer = None
-        val_tensorboard_writer = None
-
     # Define Optimizer
     if LOSS_FUNC == "BCE":
         criterion = nn.BCELoss()
 
     if REGULARIZATION == "L1":
-
         criterion_L1 = nn.L1Loss()
 
 
@@ -129,8 +98,6 @@ def main(config):
 
     stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD)
 
-    
-
     for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
         logger.info(f"Fold {fold}:")
@@ -138,7 +105,6 @@ def main(config):
         model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
 
         # import torchvision.models as models
-
         # model = models.mobilenet_v2(weights=None)
         # # Modify the classifier for your specific classification task
         # if 'classifier' in dir(model):
@@ -149,7 +115,6 @@ def main(config):
         #     model.head = nn.Linear(model.head.in_features, 1)
 
         optimizer = optim.Adam(model.parameters(), lr=LR)
-
         logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
         logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
         logger.info("------")
@@ -200,10 +165,10 @@ def main(config):
                         gamma = 2 
 
                         loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
-                        pt = torch.exp(-loss_train) # prevents nans when probability 0
-                        F_loss = alpha * (1-pt)**gamma * loss_train
+                        # pt = torch.exp(-loss_train) # prevents nans when probability 0
+                        # F_loss = alpha * (1-pt)**gamma * loss_train
 
-                        loss_train = F_loss
+                        # loss_train = F_loss
 
                     loss_train.backward()
                     optimizer.step()
@@ -242,11 +207,6 @@ def main(config):
 
                     eval_loss = F_loss
 
-                # val_log(epoch=epoch, step=index, loss=eval_loss, images_inputs=images_inputs,
-                #         seg_targets=seg_targets, seg_preds=seg_preds,
-                #         tensorboard_writer=val_tensorboard_writer, name="Validation",
-                #         prediction_dir=prediction_dir)
-
                 eval_losses.update(eval_loss.item(), len(images_inputs))
                 target = torch.squeeze(target,0)
                 target = target.detach().cpu().numpy()
@@ -265,23 +225,6 @@ def main(config):
             fold_val_f1.append(f1)
             plot_loss_metrics(metrics=metrics_dict, save_path=prediction_dir)
 
-            # df_metrics = pd.DataFrame(metrics_dict).T
-            # df_mean_metrics = df_metrics.mean()
-            # df_mean_metrics = pd.DataFrame(df_mean_metrics).T
-
-            # if epoch == 0:
-
-            #     df_val_metrics = pd.DataFrame(columns=df_mean_metrics.columns)
-            #     df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
-
-            # else:
-            #     df_val_metrics = pd.concat([df_val_metrics, df_mean_metrics])
-            #     df_val_metrics = df_val_metrics.reset_index(drop=True)
-
-            # dashboard = Dashboard(df_val_metrics)
-            # dashboard.generate_dashboard()
-            # dashboard.save_dashboard(directory_path=prediction_dir)
-            # Access the mean values
             logger.info(f'Epoch {epoch} Eval {LOSS_FUNC} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
             #Save best model
             if epoch == 0:

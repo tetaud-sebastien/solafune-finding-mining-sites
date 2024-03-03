@@ -10,11 +10,11 @@ loss: "BCE"
 number_kfold: 5
 regularization: False
 lambda_l1: 0.1
-data_augmentation: False
+data_augmentation: True
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 50
+epochs: 100
 workers: 8 
 seed: 123
 tbp: 8888
