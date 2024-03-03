@@ -4,7 +4,6 @@ import json
 import os
 import random
 import warnings
-from torch.nn import functional as F
 
 import numpy as np
 import pandas as pd
@@ -15,12 +14,15 @@ import torch.optim as optim
 import yaml
 from loguru import logger
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import StratifiedKFold
 from torch import nn
+from torch.nn import functional as F
 from torch.utils.data import ConcatDataset
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
 from datasets import EvalDataset, TrainDataset
+from eval import auto_eval
 from utils import *
 
 warnings.simplefilter('ignore')
@@ -43,27 +45,22 @@ def main(config):
     Args:
         config (dict): Dictionary of configurations.
     """
-
     #load conf file for training
     PREDICTION_DIR = config['prediction_dir']
-    REGULARIZATION = config['regularization']
     MODEL_ARCHITECTURE = config['model_architecture']
     PRETRAINED = config['pretrained']
     RESIZE = config['resize']
     IMAGE_NET_NORMALIZE = config['image_net_normalize']
     PREPROCESSING = config['preprocessing']
-    LAMBDA_L1 = config['lambda_l1']
     NUMBER_KFOLD = config['number_kfold']
     DATA_AUGMENTATION = config['data_augmentation']
     SEED = config['seed']
-    CHANNEL = config['channel']
     LR = float(config['lr'])
     BATCH_SIZE = config['batch_size']
     NUM_EPOCHS = config['epochs']
     GPU_DEVICE = config['gpu_device']
     LOSS_FUNC = config['loss']
     AUTO_EVAL = config['auto_eval']
-
     # Seed for reproductibility training
     seed_everything(seed=SEED)
     start_training_date = datetime.datetime.now()
@@ -78,42 +75,20 @@ def main(config):
     log_filename = os.path.join(prediction_dir, "train.log")
     logger.add(log_filename, backtrace=False, diagnose=True)
 
-    # Define Optimizer
-    if LOSS_FUNC == "BCE":
-        criterion = nn.BCELoss()
-
-    if REGULARIZATION == "L1":
-        criterion_L1 = nn.L1Loss()
-
-
-    models_path = []
-    best_epoch = 0
-    best_loss = 0.0
-    step = 0
-    metrics_dict = {}
+    
     folds_val_f1 = []
-
     dataset_path = pd.read_csv('data_splits/train_path.csv')
-    from sklearn.model_selection import StratifiedKFold
-
     stratified_kfold = StratifiedKFold(n_splits=NUMBER_KFOLD)
 
     for fold, (train_indices, val_indices) in enumerate(stratified_kfold.split(dataset_path.image_path, dataset_path.target)):
 
+        models_path = []
+        best_epoch = 0
+        best_loss = 0.0
+        step = 0
+        metrics_dict = {}
         logger.info(f"Fold {fold}:")
-        
         model = timm.create_model(MODEL_ARCHITECTURE, pretrained=PRETRAINED, num_classes=1)
-
-        # import torchvision.models as models
-        # model = models.mobilenet_v2(weights=None)
-        # # Modify the classifier for your specific classification task
-        # if 'classifier' in dir(model):
-        #     model.classifier[1] = nn.Linear(model.last_channel, 1)
-        # elif 'fc' in dir(model):
-        #     model.fc = nn.Linear(model.fc.in_features, 1)
-        # else:
-        #     model.head = nn.Linear(model.head.in_features, 1)
-
         optimizer = optim.Adam(model.parameters(), lr=LR)
         logger.info("Number of GPU(s) {}: ".format(torch.cuda.device_count()))
         logger.info("GPU(s) in used {}: ".format(GPU_DEVICE))
@@ -127,13 +102,15 @@ def main(config):
         fold_df_train = dataset_path.iloc[train_indices]
         fold_df_val = dataset_path.iloc[val_indices]
         
-        train_dataset = TrainDataset(df_path=fold_df_train, normalize=IMAGE_NET_NORMALIZE,resize=RESIZE, preprocessing=PREPROCESSING, data_augmentation=DATA_AUGMENTATION)
+        train_dataset = TrainDataset(df_path=fold_df_train, normalize=IMAGE_NET_NORMALIZE, resize=RESIZE, preprocessing=PREPROCESSING, data_augmentation=DATA_AUGMENTATION)
         train_dataloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
         eval_dataset = EvalDataset(df_path=fold_df_val, preprocessing=PREPROCESSING, resize=RESIZE, normalize=IMAGE_NET_NORMALIZE)
         eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=1, shuffle=False)
 
         fold_val_f1 = []
+        model_name = f"{fold}_model.pth"
+        model_path = os.path.join(prediction_dir, model_name)
 
         for epoch in range(NUM_EPOCHS):
 
@@ -142,9 +119,7 @@ def main(config):
         
             with tqdm(total=(len(train_dataset) - len(train_dataset) % BATCH_SIZE), ncols = 100, colour='#3eedc4') as t:
                 t.set_description('epoch: {}/{}'.format(epoch, NUM_EPOCHS - 1))
-
                 for data in train_dataloader:
-
                     optimizer.zero_grad()
                     images_inputs, targets = data
                     images_inputs = images_inputs.to(device)
@@ -153,31 +128,15 @@ def main(config):
                     preds = torch.sigmoid(preds)
                     targets = torch.unsqueeze(targets, 1)
 
-                    if REGULARIZATION == "L1":
-
-                        l1_loss = criterion_L1(preds.to(torch.float32), targets.to(torch.float32))
-                        l1_loss = criterion_L1(preds.to(torch.float32), targets.to(torch.float32))
-                        loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32)) + (LAMBDA_L1 * l1_loss)
-
-                    else:
-
-                        alpha = 0.25 
-                        gamma = 2 
-
+                    if LOSS_FUNC=="BCE":
+                        criterion = nn.BCELoss()
                         loss_train = criterion(preds.to(torch.float32), targets.to(torch.float32))
-                        # pt = torch.exp(-loss_train) # prevents nans when probability 0
-                        # F_loss = alpha * (1-pt)**gamma * loss_train
-
-                        # loss_train = F_loss
 
                     loss_train.backward()
                     optimizer.step()
-
                     train_losses.update(loss_train.item(), len(images_inputs))
-                    # train_log(step=step, loss=loss, tensorboard_writer=train_tensorboard_writer, name="Training")
                     t.set_postfix(loss='{:.6f}'.format(train_losses.avg))
                     t.update(len(images_inputs))
-
                     step += 1
 
             model.eval()
@@ -186,7 +145,6 @@ def main(config):
 
             # Model Evaluation
             for index, data in enumerate(eval_dataloader):
-                
                 images_inputs, target = data
                 images_inputs = images_inputs.to(device)
                 target = target.to(device)
@@ -196,16 +154,9 @@ def main(config):
 
                     pred = model(images_inputs)
                     pred = torch.sigmoid(pred)
-
-                    
-                    alpha = 0.25 
-                    gamma = 2 
-
-                    eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
-                    pt = torch.exp(-eval_loss) # prevents nans when probability 0
-                    F_loss = alpha * (1-pt)**gamma * eval_loss
-
-                    eval_loss = F_loss
+                    if LOSS_FUNC=="BCE":
+                        criterion = nn.BCELoss()
+                        eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
 
                 eval_losses.update(eval_loss.item(), len(images_inputs))
                 target = torch.squeeze(target,0)
@@ -223,10 +174,10 @@ def main(config):
                                     'loss_eval': eval_losses.avg}
 
             fold_val_f1.append(f1)
-            plot_loss_metrics(metrics=metrics_dict, save_path=prediction_dir)
-
+            loss_plot_filename  = os.path.join(prediction_dir,f"loss_fold_{fold}.png")
+            plot_loss_metrics(metrics=metrics_dict, save_path=loss_plot_filename)
             logger.info(f'Epoch {epoch} Eval {LOSS_FUNC} - Loss: {eval_losses.avg} - Acc {acc} - F1 {f1}')
-            #Save best model
+            
             if epoch == 0:
 
                 best_epoch = epoch
@@ -240,15 +191,10 @@ def main(config):
                 best_f1 = f1
                 best_loss = eval_losses.avg
                 best_weights = copy.deepcopy(model.state_dict())
-            # save model 
-        
-
-        model_name = f"{fold}_model.pth"
-        model_path = os.path.join(prediction_dir, model_name)
+            
+            torch.save(best_weights, model_path)
 
         models_path.append(model_path)
-
-        torch.save(best_weights, model_path)
         logger.info(f'FOLD {fold} - AVG F1: {np.mean(fold_val_f1)}')
         folds_val_f1.append(np.mean(fold_val_f1))
         logger.info(f'best epoch: {best_epoch}, best F1-score: {best_f1} loss: {best_loss}')
@@ -265,7 +211,6 @@ def main(config):
     logger.info('Training Duration: {}'.format(str(training_duration)))
     model_size = estimate_model_size(model)
     logger.info("model size: {}".format(model_size))
-    
     # Evaluation Ensemble Model
     logger.info("##############")
     logger.info("EVALUATION")
@@ -275,8 +220,6 @@ def main(config):
     models_path = [file for file in list_dir if file.endswith('.pth')]
     
     if AUTO_EVAL:
-
-        from eval import auto_eval
 
         df_val = pd.DataFrame()
         for i in range(len(models_path)):

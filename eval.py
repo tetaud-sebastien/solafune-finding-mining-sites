@@ -5,13 +5,12 @@ import pandas as pd
 from loguru import logger
 from datasets import EvalDataset
 from torch.utils.data.dataloader import DataLoader
+import timm
 
 from sklearn.metrics import accuracy_score, f1_score
-import timm
 
 import warnings
 warnings.filterwarnings("ignore")
-
 
 def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, save_path):
     """
@@ -22,25 +21,16 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
         args (argparse.Namespace): The command-line arguments.
 
     """
-    import torch.nn as nn
-
-    from torchvision.models import resnet50
-    # model = resnet50(weights=None)
-    # model.fc = nn.Linear(model.fc.in_features, 1)
-
-    from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
-
+    # import torch.nn as nn
+    # from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
     # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
-    model = efficientnet_v2_m(weights=None)
-    # model.fc = nn.Linear(model.fc.in_features, 1)
+    # model = efficientnet_v2_m(weights=None)
+    # if 'classifier' in dir(model):
+    #     model.classifier[1] = nn.Linear(1280, 1)
+    # elif 'fc' in dir(model):
+    #     model.fc = nn.Linear(model.fc.in_features, 1)
 
-    # Modify the classifier for your specific classification task
-    if 'classifier' in dir(model):
-        model.classifier[1] = nn.Linear(1280, 1)
-    elif 'fc' in dir(model):
-        model.fc = nn.Linear(model.fc.in_features, 1)
-    # model = models.mobilenet_v2(weights=None)
-    # model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
+    model = timm.create_model(model_architecture, pretrained=False, num_classes=1)
     logger.info("==> Loading checkpoint '{}'".format(model_path))
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
@@ -56,7 +46,6 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
     targets_eval = []
     preds_eval = []
     for index, data in enumerate(test_dataloader):
-    
         images_inputs, target = data
         images_inputs = images_inputs.to(device)
         target = target.to(device)
@@ -78,7 +67,6 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
     f1 = f1_score(targets_eval, preds_eval)
 
     metrics = {'accuracy': acc, 'F1': f1}
-
     save_path = os.path.join(save_path, 'eval_metrics.json')
     import json
     with open(save_path, 'w') as fp:
@@ -86,11 +74,9 @@ def auto_eval(model_path, model_architecture, preprocessing,resize, normalize, s
 
     logger.info(f'EVALUATION: Accuracy {acc} - F1-score: {f1}')
     logger.info("Done")
-
     return preds_eval, targets_eval
 
 # if __name__ == '__main__':
-    
 #     auto_eval(model_path="/home/sebastien/Documents/projects/solafune-finding-mining-sites/training_prediction/2024_02_29_15_11_33/4_model.pth",
 #               model_architecture="caformer_s18.sail_in1k",
 #               preprocessing="RGB",
