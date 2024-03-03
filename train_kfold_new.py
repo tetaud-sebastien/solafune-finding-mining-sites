@@ -188,14 +188,11 @@ def main(config):
 
                     pred = model(images_inputs)
                     pred = torch.sigmoid(pred)
+                    
+                    if LOSS_FUNC=="BCE":
 
-                    # alpha = 0.25 
-                    # gamma = 2 
-                    eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
-                    # pt = torch.exp(-eval_loss) # prevents nans when probability 0
-                    # F_loss = alpha * (1-pt)**gamma * eval_loss
-
-                    # eval_loss = F_loss
+                        criterion = nn.BCELoss()
+                        eval_loss = criterion(pred.to(torch.float32), target.to(torch.float32))
 
                 eval_losses.update(eval_loss.item(), len(images_inputs))
                 target = torch.squeeze(target,0)

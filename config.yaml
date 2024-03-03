@@ -14,7 +14,7 @@ data_augmentation: True
 gpu_device: 0
 lr: 1e-4
 batch_size: 4
-epochs: 100
+epochs: 20
 workers: 8 
 seed: 123
 tbp: 8888
