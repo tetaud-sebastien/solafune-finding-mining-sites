@@ -34,18 +34,20 @@ def main(args):
     df_pred = pd.DataFrame()
     for i in range(len(models_path)):
         model_path = os.path.join(checkpoint_path, models_path[i])
-        logger.info(f"model_{i}: {models_path[i]}")
-        from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
+        logger.info(f"model: {models_path[i]}")
+        model = timm.create_model("davit_base.msft_in1k", pretrained=False, num_classes=1)
+        
+        # from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
 
-        # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
-        model = efficientnet_v2_m(weights=None)
-        # model.fc = nn.Linear(model.fc.in_features, 1)
+        # # weights = EfficientNet_V2_L_Weights.IMAGENET1K_V1
+        # model = efficientnet_v2_m(weights=None)
+        # # model.fc = nn.Linear(model.fc.in_features, 1)
 
-        # Modify the classifier for your specific classification task
-        if 'classifier' in dir(model):
-            model.classifier[1] = nn.Linear(1280, 1)
-        elif 'fc' in dir(model):
-            model.fc = nn.Linear(model.fc.in_features, 1)
+        # # Modify the classifier for your specific classification task
+        # if 'classifier' in dir(model):
+        #     model.classifier[1] = nn.Linear(1280, 1)
+        # elif 'fc' in dir(model):
+        #     model.fc = nn.Linear(model.fc.in_features, 1)
         logger.info("==> Loading checkpoint '{}'".format(model_path))
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
@@ -82,7 +84,7 @@ def main(args):
     dfs[1] = df_pred['majority']
     dfs[1] = preds_submit
     # some data are not valid
-    dfs = dfs.replace(-9223372036854775808, int(0))
+    dfs = dfs.replace(-9223372036854775808, int(1))
     dfs.to_csv("submit.csv", header=False, index=False)
 
 if __name__ == '__main__':

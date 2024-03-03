@@ -15,78 +15,70 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def center_crop(img, dim):
-    """
-    Center crop an image.
-    This function crops an image by taking a rectangular region from the center of the image. 
-    The size of the rectangular region is determined by the input dimensions.
-    Args:
-        img (ndarray): The image to be cropped. The image should be a 2D numpy array.
-        dim (tuple): A tuple of integers representing the width and height of the crop window.
-    Returns:
-        ndarray: The center-cropped image as a 2D numpy array.
-    Example:
-        >>> import numpy as np
-        >>> img = np.random.randint(0, 255, size=(100, 100, 3), dtype=np.uint8)
-        >>> cropped_img = center_crop(img, (50, 50))
-    """
-    width, height = img.shape[1], img.shape[0]
-    # process crop width and height for max available dimension
-    crop_width = dim[0] if dim[0] < img.shape[1] else img.shape[1]
-    crop_height = dim[1] if dim[1] < img.shape[0] else img.shape[0]
-    mid_x, mid_y = int(width / 2), int(height / 2)
-    cw2, ch2 = int(crop_width / 2), int(crop_height / 2)
-    crop_img = img[mid_y - ch2:mid_y + ch2, mid_x - cw2:mid_x + cw2]
-    return np.ascontiguousarray(crop_img)
 
+def data_augmentation(image, verbose=False):
 
-def get_random_crop(image, mask, crop_width=256, crop_height=256):
-    """
-    Get a random crop from the image and mask.
-
-    Args:
-        image (numpy.ndarray): The input image (numpy array).
-        mask (numpy.ndarray): The input mask (numpy array).
-        crop_width (int): Width of the crop (default is 256).
-        crop_height (int): Height of the crop (default is 256).
-
-    Returns:
-        tuple: A tuple containing the cropped image and mask as numpy arrays.
-    """
-    max_x = mask.shape[1] - crop_width
-    max_y = mask.shape[0] - crop_height
-    x = np.random.randint(0, max_x)
-    y = np.random.randint(0, max_y)
-    crop_mask = mask[y: y + crop_height, x: x + crop_width]
-    crop_image = image[y: y + crop_height, x: x + crop_width, :]
-    return crop_image, crop_mask
-
-
-def data_augmentation(image):
+    optical_transform = A.Compose([
+    A.HorizontalFlip(p=random.uniform(0, 1)),
+    A.VerticalFlip(p=random.uniform(0, 1)),
+    A.RandomBrightnessContrast(p=random.uniform(0, 1)),
+    A.RandomGamma(p=random.uniform(0, 1)),
+    # A.GaussNoise(p=random.uniform(0, 1)),
+    A.ColorJitter(p=random.uniform(0, 1))])
     
-    image = np.array(image)
     apply_transform = ["yes", "no"]
-    
     if random.choice(apply_transform)=="yes":
-        
-        
-        # Define your augmentation transformations
-        transform = A.Compose([
-            A.HorizontalFlip(p=0.5),  # Random horizontal flip with a probability of 0.5
-            A.VerticalFlip(p=0.5),    # Random vertical flip with a probability of 0.5
-            # Add more augmentations as needed
-        ])
+        augmented = optical_transform(image=image)
+        aug_image = augmented['image']
 
-        # Perform augmentation on the image
-        augmented = transform(image=image)
-        # Retrieve the augmented image
-        augmented_image = augmented['image']
-        # augmented_image = np.transpose(augmented_image,(2,1,0))
+        transform_info = optical_transform.get_dict_with_id()
         
+        # print("Applied transformations:")
+        # for key, value in transform_info.items():
+        #     print(f"{key}: {value}")
     else:
-        augmented_image = image
+        aug_image = image
         
-    return augmented_image
+    if verbose:
+        import matplotlib.pyplot as plt
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        ax1.imshow(image)
+        ax1.set_title("Image")
+        ax1.axis('off')
+        ax2.imshow(aug_image)
+        ax2.set_title("Augmented Image")
+        ax2.axis('off')
+    return aug_image
+
+
+
+
+# def data_augmentation(image):
+    
+#     image = np.array(image)
+#     apply_transform = ["yes", "no"]
+    
+#     if random.choice(apply_transform)=="yes":
+        
+        
+#         # Define your augmentation transformations
+#         transform = A.Compose([
+#             A.HorizontalFlip(p=0.5),  # Random horizontal flip with a probability of 0.5
+#             A.VerticalFlip(p=0.5),    # Random vertical flip with a probability of 0.5
+#             # Add more augmentations as needed
+#         ])
+
+#         # Perform augmentation on the image
+#         augmented = transform(image=image)
+#         # Retrieve the augmented image
+#         augmented_image = augmented['image']
+#         # augmented_image = np.transpose(augmented_image,(2,1,0))
+        
+#     else:
+#         augmented_image = image
+        
+#     return augmented_image
 
 
 def normalize(band):
@@ -105,6 +97,7 @@ def image_preprocessing(image_path):
     blue_n = normalize(blue)
     rgb_composite_n= np.dstack((red_n, green_n, blue_n))
     return rgb_composite_n
+
 
 
 def image_preprocessing_index(image_path):
@@ -184,7 +177,13 @@ class TrainDataset(Dataset):
         if self.normalize:
             transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+
+            # Custom Normalization
+            transforms.Normalize(mean=[0.13799362, 0.12012463, 0.09399955], 
+                                 std=[0.038435966, 0.030695442, 0.027098808])]),
+
+            # Imagnet Normalization
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         else:
             transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
 
