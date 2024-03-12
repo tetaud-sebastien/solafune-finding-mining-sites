@@ -25,17 +25,12 @@ def data_augmentation(image, verbose=False):
     A.RandomGamma(p=random.uniform(0, 1)),
     # A.GaussNoise(p=random.uniform(0, 1)),
     A.ColorJitter(p=random.uniform(0, 1))])
-    
+
     apply_transform = ["yes", "no"]
     if random.choice(apply_transform)=="yes":
         augmented = optical_transform(image=image)
-        aug_image = augmented['image']
-
-        transform_info = optical_transform.get_dict_with_id()
+        aug_image = augmented['image']        
         
-        # print("Applied transformations:")
-        # for key, value in transform_info.items():
-        #     print(f"{key}: {value}")
     else:
         aug_image = image
         
@@ -52,35 +47,6 @@ def data_augmentation(image, verbose=False):
     return aug_image
 
 
-
-
-# def data_augmentation(image):
-    
-#     image = np.array(image)
-#     apply_transform = ["yes", "no"]
-    
-#     if random.choice(apply_transform)=="yes":
-        
-        
-#         # Define your augmentation transformations
-#         transform = A.Compose([
-#             A.HorizontalFlip(p=0.5),  # Random horizontal flip with a probability of 0.5
-#             A.VerticalFlip(p=0.5),    # Random vertical flip with a probability of 0.5
-#             # Add more augmentations as needed
-#         ])
-
-#         # Perform augmentation on the image
-#         augmented = transform(image=image)
-#         # Retrieve the augmented image
-#         augmented_image = augmented['image']
-#         # augmented_image = np.transpose(augmented_image,(2,1,0))
-        
-#     else:
-#         augmented_image = image
-        
-#     return augmented_image
-
-
 def normalize(band):
     band_min, band_max = (band.min(), band.max())
     return ((band-band_min)/((band_max - band_min)))
@@ -92,32 +58,32 @@ def image_preprocessing(image_path):
     red = image[3,:,:]
     green = image[2,:,:]
     blue = image[1,:,:]
-    red_n = normalize(red)
-    green_n = normalize(green)
-    blue_n = normalize(blue)
-    rgb_composite_n= np.dstack((red_n, green_n, blue_n))
+    # red_n = normalize(red)
+    # green_n = normalize(green)
+    # blue_n = normalize(blue)
+    # rgb_composite_n= np.dstack((red_n, green_n, blue_n))
+    rgb_composite_n= np.dstack((red, green, blue))
     return rgb_composite_n
 
+def image_preprocessing_raw(image_path):
+
+    image = xr.open_rasterio(image_path, masked=False).values
+
+   
+    return image
+
+from scipy.interpolate import griddata
 
 
 def image_preprocessing_index(image_path):
 
     image = xr.open_rasterio(image_path, masked=False).values
-    
     nwdi = (image[2,:,:]-image[7,:,:])/(image[2,:,:]+image[7,:,:])
-    # nwdi = normalize(nwdi)
-
     ndvi = (image[7,:,:]-image[3,:,:])/(image[7,:,:]+image[3,:,:])
-    # ndvi = normalize(ndvi)
-
     msi = image[10,:,:]/image[7,:,:]
-    # msi = normalize(msi)
-
     image_index = np.dstack((ndvi, nwdi, msi))
-    
-    image_index = normalize(image_index)
-    print(image_index.shape)
-    # image_index= np.transpose(image_index, (1, 2, 0))
+    # image_index =  interpolate_nan_rgb(image_index)
+    # print(np.isnan(image_index).sum())
     return image_index
 
 
@@ -157,7 +123,6 @@ class TrainDataset(Dataset):
         self.preprocessing = preprocessing
         self.resize = resize
 
-    
 
     def __getitem__(self, index):
 
@@ -165,7 +130,11 @@ class TrainDataset(Dataset):
         # image = image_prepreprocessing(img_path)
 
         if self.preprocessing == "RGB":
+
             image = image_preprocessing(image_path=img_path)
+        elif self.preprocessing == "RGB_raw":
+            image = image_preprocessing_raw(image_path=img_path)
+
         elif self.preprocessing == "INDEX":
             image = image_preprocessing_index(image_path=img_path)
         elif self.preprocessing == "PCA":
@@ -185,12 +154,9 @@ class TrainDataset(Dataset):
             # Imagnet Normalization
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         else:
-            transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
+            transform = transforms.Compose([transforms.ToTensor(), transforms.Resize(self.resize)])
 
         image = transform(image)
-        
-       
-        
         target = self.df_path.target.iloc[index]
         
         return image, target
@@ -275,7 +241,7 @@ class TestDataset(Dataset):
             transform = transforms.Compose([transforms.ToTensor(),transforms.Resize(self.resize)])
             
 
-        image = transform(image)    
+        # image = transform(image)    
     
         return image
 
